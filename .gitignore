@@ -1,0 +1,9 @@
+*.opensdf
+*.sdf
+*.suo
+*.vcxproj.filters
+*.vcxproj.user
+
+/x64
+/QtTest/GeneratedFiles
+/QtTest/x64
