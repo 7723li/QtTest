@@ -1,0 +1,538 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{A9D99359-A282-3926-95CE-378E7BFFD204}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <Platform>x64</Platform>
+    <ProjectName>ALL_BUILD</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\include;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\include;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\include;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <Midl>
+      <AdditionalIncludeDirectories>F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\include;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\CMakeLists.txt">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule F:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"E:\Program Files\CMake\bin\cmake.exe" -SF:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0 -BF:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0/build --check-stamp-file F:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeCInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeCXXInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeCommonLanguageInclude.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeGenericSystem.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeInitializeConfigs.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeLanguageInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeRCInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeSystemSpecificInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeSystemSpecificInitialize.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Compiler\CMakeCommonCompilerMacros.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Compiler\MSVC-C.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Compiler\MSVC-CXX.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\FindPackageHandleStandardArgs.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\FindPackageMessage.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\FindPythonInterp.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-MSVC-C.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-MSVC-CXX.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-MSVC.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-windres.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\WindowsPaths.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeCCompiler.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeCXXCompiler.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeRCCompiler.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeSystem.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\cmake\internal_utils.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule F:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+"E:\Program Files\CMake\bin\cmake.exe" -SF:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0 -BF:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0/build --check-stamp-file F:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeCInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeCXXInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeCommonLanguageInclude.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeGenericSystem.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeInitializeConfigs.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeLanguageInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeRCInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeSystemSpecificInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeSystemSpecificInitialize.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Compiler\CMakeCommonCompilerMacros.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Compiler\MSVC-C.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Compiler\MSVC-CXX.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\FindPackageHandleStandardArgs.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\FindPackageMessage.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\FindPythonInterp.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-MSVC-C.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-MSVC-CXX.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-MSVC.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-windres.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\WindowsPaths.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeCCompiler.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeCXXCompiler.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeRCCompiler.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeSystem.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\cmake\internal_utils.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule F:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+"E:\Program Files\CMake\bin\cmake.exe" -SF:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0 -BF:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0/build --check-stamp-file F:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeCInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeCXXInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeCommonLanguageInclude.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeGenericSystem.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeInitializeConfigs.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeLanguageInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeRCInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeSystemSpecificInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeSystemSpecificInitialize.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Compiler\CMakeCommonCompilerMacros.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Compiler\MSVC-C.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Compiler\MSVC-CXX.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\FindPackageHandleStandardArgs.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\FindPackageMessage.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\FindPythonInterp.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-MSVC-C.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-MSVC-CXX.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-MSVC.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-windres.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\WindowsPaths.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeCCompiler.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeCXXCompiler.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeRCCompiler.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeSystem.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\cmake\internal_utils.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule F:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+"E:\Program Files\CMake\bin\cmake.exe" -SF:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0 -BF:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0/build --check-stamp-file F:/workspaces/googletest-master/googletest-release-1.7.0/googletest-release-1.7.0/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeCInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeCXXInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeCommonLanguageInclude.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeGenericSystem.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeInitializeConfigs.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeLanguageInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeRCInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeSystemSpecificInformation.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\CMakeSystemSpecificInitialize.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Compiler\CMakeCommonCompilerMacros.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Compiler\MSVC-C.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Compiler\MSVC-CXX.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\FindPackageHandleStandardArgs.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\FindPackageMessage.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\FindPythonInterp.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-MSVC-C.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-MSVC-CXX.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-MSVC.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows-windres.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\Windows.cmake;E:\Program Files\CMake\share\cmake-3.14\Modules\Platform\WindowsPaths.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeCCompiler.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeCXXCompiler.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeRCCompiler.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\3.14.5\CMakeSystem.cmake;F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\cmake\internal_utils.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\ZERO_CHECK.vcxproj">
+      <Project>{71E07A0B-AE95-3CF7-B54B-8BC7B65B89D9}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest.vcxproj">
+      <Project>{E28139F5-A30E-3605-9D72-F2FB037D0516}</Project>
+      <Name>gtest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-death-test_ex_catch_test.vcxproj">
+      <Project>{5703A20B-FA73-3A6D-82B4-F3D935C17D3D}</Project>
+      <Name>gtest-death-test_ex_catch_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-death-test_ex_nocatch_test.vcxproj">
+      <Project>{AB30A45E-2D61-32CA-AA2C-34799C09EE85}</Project>
+      <Name>gtest-death-test_ex_nocatch_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-death-test_test.vcxproj">
+      <Project>{C40C546A-4528-3DBB-BF30-55A39E22C0B3}</Project>
+      <Name>gtest-death-test_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-filepath_test.vcxproj">
+      <Project>{E3ECB1CF-532C-3FCC-9BD3-BF4EA69384E7}</Project>
+      <Name>gtest-filepath_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-linked_ptr_test.vcxproj">
+      <Project>{3192BBD9-2195-3F0C-AC47-E56623D0BCAD}</Project>
+      <Name>gtest-linked_ptr_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-listener_test.vcxproj">
+      <Project>{6A9231B2-2F25-3AC8-A688-953BBE30C1FB}</Project>
+      <Name>gtest-listener_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-message_test.vcxproj">
+      <Project>{597AABFC-8CD9-3E27-A9B0-FEE7EC0325E3}</Project>
+      <Name>gtest-message_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-options_test.vcxproj">
+      <Project>{2FED1B65-35C4-369A-AF16-A9AB44366505}</Project>
+      <Name>gtest-options_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-param-test_test.vcxproj">
+      <Project>{9E479A44-9256-3082-BC91-D0339556D55F}</Project>
+      <Name>gtest-param-test_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-port_test.vcxproj">
+      <Project>{43C988FB-CA74-3098-907C-3A2C7F01103B}</Project>
+      <Name>gtest-port_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-printers_test.vcxproj">
+      <Project>{7D1502F7-5B06-3C34-9B9D-864B80509297}</Project>
+      <Name>gtest-printers_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-test-part_test.vcxproj">
+      <Project>{2F22761B-AB8D-3FBA-975D-79458647FEC3}</Project>
+      <Name>gtest-test-part_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-tuple_test.vcxproj">
+      <Project>{53442051-BB0C-3966-9D05-324613828122}</Project>
+      <Name>gtest-tuple_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-typed-test_test.vcxproj">
+      <Project>{C868CC31-84EE-3DF6-8FEE-998D97B9675F}</Project>
+      <Name>gtest-typed-test_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest-unittest-api_test.vcxproj">
+      <Project>{449C4050-5869-3EA7-9F61-451330D19458}</Project>
+      <Name>gtest-unittest-api_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_break_on_failure_unittest_.vcxproj">
+      <Project>{AF96A6FE-2D8B-3759-9356-E347B085937D}</Project>
+      <Name>gtest_break_on_failure_unittest_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_catch_exceptions_ex_test_.vcxproj">
+      <Project>{BB97401B-A4DD-3812-BD02-4FEEA764CE42}</Project>
+      <Name>gtest_catch_exceptions_ex_test_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_catch_exceptions_no_ex_test_.vcxproj">
+      <Project>{981F5D1B-4FEE-30A3-AB36-E694033F8162}</Project>
+      <Name>gtest_catch_exceptions_no_ex_test_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_color_test_.vcxproj">
+      <Project>{652EC53F-B927-37D2-A31F-A69EBE1149CA}</Project>
+      <Name>gtest_color_test_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_dll.vcxproj">
+      <Project>{43FB3D4F-E47E-3A87-8BDF-502BAE2943EB}</Project>
+      <Name>gtest_dll</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_dll_test_.vcxproj">
+      <Project>{BA135970-1113-3F0A-99EC-0BB2CEF63094}</Project>
+      <Name>gtest_dll_test_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_env_var_test_.vcxproj">
+      <Project>{4707275D-8462-34D1-8B51-0F6BBEA2C96B}</Project>
+      <Name>gtest_env_var_test_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_environment_test.vcxproj">
+      <Project>{9117B0F8-074A-30AE-AA46-8A79E053D9C1}</Project>
+      <Name>gtest_environment_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_filter_unittest_.vcxproj">
+      <Project>{48592B12-0B3F-3FAC-AD67-FB85C636F6DB}</Project>
+      <Name>gtest_filter_unittest_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_help_test_.vcxproj">
+      <Project>{60951209-911C-37C7-9CB4-306381B2957E}</Project>
+      <Name>gtest_help_test_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_list_tests_unittest_.vcxproj">
+      <Project>{9BA4E2E2-D9A2-3F23-B86D-9E512243497E}</Project>
+      <Name>gtest_list_tests_unittest_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_main.vcxproj">
+      <Project>{DEFD940C-7B24-3D54-A5A7-5BB1B51E8675}</Project>
+      <Name>gtest_main</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_main_no_exception.vcxproj">
+      <Project>{B51D6847-934F-3D9E-B6B0-78F8613185F7}</Project>
+      <Name>gtest_main_no_exception</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_main_no_rtti.vcxproj">
+      <Project>{1B1AE688-93BA-3828-9C3F-F89495725E94}</Project>
+      <Name>gtest_main_no_rtti</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_main_unittest.vcxproj">
+      <Project>{5B57DB85-B351-3E4C-BE8E-1DD6E46FCC3E}</Project>
+      <Name>gtest_main_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_main_use_own_tuple.vcxproj">
+      <Project>{9B5E6DD7-8ABD-397E-89D2-F1B501B4B333}</Project>
+      <Name>gtest_main_use_own_tuple</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_no_exception.vcxproj">
+      <Project>{79100D8E-EB85-399F-BB87-7A032AF2B7ED}</Project>
+      <Name>gtest_no_exception</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_no_rtti_unittest.vcxproj">
+      <Project>{5E02D9E4-BB01-37EF-85EF-5D48F7A78BB3}</Project>
+      <Name>gtest_no_rtti_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_no_test_unittest.vcxproj">
+      <Project>{F745E27F-975C-3E1B-BBC5-89418670A8DF}</Project>
+      <Name>gtest_no_test_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_output_test_.vcxproj">
+      <Project>{2A206E5C-212B-3FDF-9898-FD7AF1854384}</Project>
+      <Name>gtest_output_test_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_pred_impl_unittest.vcxproj">
+      <Project>{8AE045C0-0CED-38CD-800B-E2E8E59259A9}</Project>
+      <Name>gtest_pred_impl_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_premature_exit_test.vcxproj">
+      <Project>{A7928D54-7EB7-3F5F-9441-A7BB61614FD5}</Project>
+      <Name>gtest_premature_exit_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_prod_test.vcxproj">
+      <Project>{25EF6503-E686-3F19-AB20-492E67207081}</Project>
+      <Name>gtest_prod_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_repeat_test.vcxproj">
+      <Project>{C8EC1E8E-ECF3-3ADF-9FCF-52479414A201}</Project>
+      <Name>gtest_repeat_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_shuffle_test_.vcxproj">
+      <Project>{2AC66469-E0DC-3B53-AEDB-2B3C663F2328}</Project>
+      <Name>gtest_shuffle_test_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_sole_header_test.vcxproj">
+      <Project>{18A82DB8-81DB-384F-A1AC-4EB7B0E6BDD2}</Project>
+      <Name>gtest_sole_header_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_stress_test.vcxproj">
+      <Project>{678F2D1F-4AE6-3BC4-B552-0CE72DECC336}</Project>
+      <Name>gtest_stress_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_throw_on_failure_ex_test.vcxproj">
+      <Project>{6769B9FD-7803-3F5C-A15C-809E9B7AD647}</Project>
+      <Name>gtest_throw_on_failure_ex_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_throw_on_failure_test_.vcxproj">
+      <Project>{040E7D74-010D-3565-AD8F-6D5E457A1ED7}</Project>
+      <Name>gtest_throw_on_failure_test_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_uninitialized_test_.vcxproj">
+      <Project>{C6967D4D-1CB2-3D3E-A586-B5893647D3A6}</Project>
+      <Name>gtest_uninitialized_test_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_unittest.vcxproj">
+      <Project>{43148CE8-7364-336E-8F9D-FB22D0B06A50}</Project>
+      <Name>gtest_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_use_own_tuple_test.vcxproj">
+      <Project>{8AEF44DB-E004-3B56-A729-EF19210A19BC}</Project>
+      <Name>gtest_use_own_tuple_test</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_xml_outfile1_test_.vcxproj">
+      <Project>{21B7AC85-51BA-3B32-9130-988907A5FF71}</Project>
+      <Name>gtest_xml_outfile1_test_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_xml_outfile2_test_.vcxproj">
+      <Project>{657E5CED-4897-3262-910F-F55A34F70D97}</Project>
+      <Name>gtest_xml_outfile2_test_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\gtest_xml_output_unittest_.vcxproj">
+      <Project>{D63C98B9-EF67-3CF0-A338-F0DF821A5634}</Project>
+      <Name>gtest_xml_output_unittest_</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\sample10_unittest.vcxproj">
+      <Project>{DB8B3C19-57CD-30FE-9895-F2B665F79FB5}</Project>
+      <Name>sample10_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\sample1_unittest.vcxproj">
+      <Project>{56227E70-C10D-3F06-A154-49075B51A53D}</Project>
+      <Name>sample1_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\sample2_unittest.vcxproj">
+      <Project>{7252B7C7-8849-300B-878C-78ABB65BA4AE}</Project>
+      <Name>sample2_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\sample3_unittest.vcxproj">
+      <Project>{01328AD4-329D-3DC7-BACF-047F82980B3F}</Project>
+      <Name>sample3_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\sample4_unittest.vcxproj">
+      <Project>{0C810411-C374-36F3-AFD8-5C2E2969BAC1}</Project>
+      <Name>sample4_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\sample5_unittest.vcxproj">
+      <Project>{9A5393C4-55E7-38FB-A618-F01614728E4B}</Project>
+      <Name>sample5_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\sample6_unittest.vcxproj">
+      <Project>{9EEEB7D3-184F-3696-949F-00D0537AA33C}</Project>
+      <Name>sample6_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\sample7_unittest.vcxproj">
+      <Project>{0A88FC93-A45A-3C7D-AF16-8FE40C5B098F}</Project>
+      <Name>sample7_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\sample8_unittest.vcxproj">
+      <Project>{D826463B-EC3F-30A4-8FE8-3357FB209269}</Project>
+      <Name>sample8_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="F:\workspaces\googletest-master\googletest-release-1.7.0\googletest-release-1.7.0\build\sample9_unittest.vcxproj">
+      <Project>{9AF11500-C4CA-37B1-AF52-AFAF769F2ABF}</Project>
+      <Name>sample9_unittest</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
