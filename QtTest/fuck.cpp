@@ -34,7 +34,7 @@ Fuck::Fuck(QWidget *parent)
 	m_stackwidget->addWidget(sth_widg);
 	sth_widg->setGeometry(m_stackwidget->geometry());
 
-	m_PageVideoCollect = new PageVideoCollect(this);
+	m_PageVideoCollect = new PageVideoRecord(this);
 	m_PageVideoCollect->setGeometry(m_stackwidget->geometry());
 	m_stackwidget->addWidget(m_PageVideoCollect);
 
@@ -45,7 +45,6 @@ Fuck::Fuck(QWidget *parent)
 	qDebug() << "---init st_w->btn_1->geometry() : " << sth_widg->btn_1->geometry();
 	qDebug() << "---init sPromptBoxInst->geometry() : " << PromptBoxInst->geometry();
 	qDebug() << "---init m_PageVideoCollect->geometry() : " << m_PageVideoCollect->geometry();
-	qDebug() << "---init m_PageVideoCollect->m_PageVideoCollect_kit->image_display->geometry() : " << m_PageVideoCollect->m_PageVideoCollect_kit->image_display->geometry();
 
 	QFile qss_file("./Resources/common.qss");
 	if (qss_file.open(QIODevice::ReadOnly))
@@ -185,7 +184,6 @@ void Fuck::slot_resolution_resize(int useless)
 	qDebug() << "---now st_w->btn_1->geometry() : " << sth_widg->btn_1->geometry();
 	qDebug() << "---now sPromptBoxInst->geometry() : " << PromptBoxInst->geometry();
 	qDebug() << "---now m_PageVideoCollect->geometry() : " << m_PageVideoCollect->geometry();
-	qDebug() << "---now m_PageVideoCollect->m_PageVideoCollect_kit->image_display->geometry() : " << m_PageVideoCollect->m_PageVideoCollect_kit->image_display->geometry();
 }
 
 void Fuck::slot_switch_sth_widg()

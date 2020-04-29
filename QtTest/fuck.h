@@ -10,7 +10,7 @@
 
 #include "PromptBox.h"
 #include "sth_widget.h"
-#include "PageVideoCollect.h"	
+#include "PageVideoRecord.h"	
 
 #ifdef _WIN32
 #include <windows.h>
@@ -37,7 +37,7 @@ private:
 
 	QStackedWidget* m_stackwidget;
 	sth_widget* sth_widg;
-	PageVideoCollect* m_PageVideoCollect;
+	PageVideoRecord* m_PageVideoCollect;
 
 private slots:
 	void slot_1();
