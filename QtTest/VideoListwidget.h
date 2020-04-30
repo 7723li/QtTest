@@ -12,6 +12,8 @@
 #include <QPoint>
 #include <QScrollBar>
 
+#include "AVTCamera.h"
+
 /*
 @brief
 视频存放列表

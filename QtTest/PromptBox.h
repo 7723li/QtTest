@@ -29,6 +29,7 @@
 #include <QObject>
 #include <QCloseEvent>
 #include <QApplication>
+#include <QStackedWidget>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -118,41 +119,32 @@ public:
 	QPushButton* cancle_btn;			// 取消按钮
 	QPushButton* confirm_btn;			// 确认按钮
 
-	struct _msgbox_kitlist
+	QStackedWidget* m_using_kitlist;	// lzx 20200430 使用容器栈代替伪迭代器
+
+	struct _msgbox_kitlist : public QWidget
 	{
 		QLabel* _icon;					// 显示图标
 		QLabel* tips;					// 提示框文字
-		std::vector<QWidget*> _iter;	// 伪迭代器
 	}
-	msgbox_kitlist;
+	*msgbox_kitlist;
 
-	struct _progbar_kitlist
+	struct _progbar_kitlist : public QWidget
 	{
 		QProgressBar* progbar;			// 进度条
 		QLabel* progbar_schedule;		// 进度条进度提示
 		QLabel* tips;					// 普通进度条提示
-		std::vector<QWidget*> _iter;	// 伪迭代器
 	}
-	progbar_kitlist;
+	*progbar_kitlist;
 
-	struct _batchprogbar_kitlist
+	struct _batchprogbar_kitlist : public QWidget
 	{
 		QProgressBar* progbar;			// 进度条
 		QLabel* tip_exporting;			// 批量导出"正在导出"
 		QLabel* tip_finished;			// 批量导出"已完成x%"
 		QLabel* tip_exportnum;			// 批量导出"导出病例x个"
 		QLabel* tip_residuetime;		// 批量导出"剩余时间"
-		std::vector<QWidget*> _iter;	// 伪迭代器
 	}
-	batchprogbar_kitlist;
-	
-	//QProgressBar* progbar;		// 进度条
-	//QLabel* progbar_schedule;	// 进度条进度提示
-	//QLabel* _icon;				// 显示图标
-	//QLabel* tip_1;				// 普通进度条提示 & 批量导出"正在导出"
-	//QLabel* tip_2;				// 批量导出"已完成x%"
-	//QLabel* tip_3;				// 批量导出"导出病例x个"
-	//QLabel* tip_4;				// 批量导出"剩余时间"
+	*batchprogbar_kitlist;
 }
 PromptBox_kit;
 
@@ -177,12 +169,13 @@ public:
 	/*
 	@brief
 	调用消息提示框
-	@param[1] msgtype	显示的消息类型		PromptBox_msgtype
-	@param[2] btntype	显示的按键类型		PromptBox_btntype
-	@param[3] tips		文字提示				QString
-	@param[4] auto_close自动关闭				bool
+	@param[1] msgtype		显示的消息类型		PromptBox_msgtype
+	@param[2] btntype		显示的按键类型		PromptBox_btntype
+	@param[3] tips			文字提示				QString
+	@param[4] interval_secs	阻塞时间	(s)			int
+	@param[5] auto_close	自动关闭				bool
 	*/
-	PromptBox_rettype msgbox_go(PromptBox_msgtype msgtype, PromptBox_btntype btntype, tiptype show_tips, bool auto_close = false);
+	PromptBox_rettype msgbox_go(PromptBox_msgtype msgtype, PromptBox_btntype btntype, tiptype show_tips, int interval_ms = 0, bool auto_close = false);
 
 	/*
 	@brief
@@ -194,6 +187,8 @@ public:
 	@param[2] max			最大值			int
 	@param[3] bartype		进度条样式		Prompt_progbar_type
 	@param[4] auto_close	自动关闭进度条	bool
+	@note
+	进度条的自动关闭指走完后马上就关闭
 	*/
 	void progbar_prepare(int min, int max, Prompt_progbar_type bartype, bool auto_close = false);
 	/*
@@ -217,11 +212,11 @@ public:
 	动画时间(单位:ms) t = (max - min)  interval
 	@param[1] min			最小值			int
 	@param[2] max			最大值			int
-	@param[3]interval		等待间隔			int
+	@param[3]interval		阻塞时间(ms)		int
 	@param[4] tips			文字提示			QString
-	@param[5] autoclose	自动关闭进度条	bool
+	@param[5] autoclose		自动关闭进度条	bool
 	*/
-	void progbar_fakego(int min, int max, int interval, QString tip, bool auto_close = true);
+	void progbar_fakego(int min, int max, int interval_ms, QString tip, bool auto_close = true);
 
 protected:
 	void mousePressEvent(QMouseEvent* e);	// 鼠标事件 用于弹框移动

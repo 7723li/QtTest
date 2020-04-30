@@ -35,56 +35,67 @@ PromptBox_kit::PromptBox_kit(PromptBox* p)
 	confirm_btn->setText(QStringLiteral("确认"));
 	confirm_btn->setObjectName("pushButtonOperation");
 
+	m_using_kitlist = new QStackedWidget(background_tips_progbar);
+	m_using_kitlist->setGeometry(0, 0, background_tips_progbar->width(), background_tips_progbar->height());
+
 	// msgbox_kitlist
-	msgbox_kitlist.tips = new QLabel(background_tips_progbar);
-	msgbox_kitlist.tips->setGeometry(100, 63, 300, 40);
-	msgbox_kitlist.tips->setFont(tip_font);
+	; {
+		msgbox_kitlist = new struct _msgbox_kitlist;
 
-	msgbox_kitlist._icon = new QLabel(background_tips_progbar);
-	msgbox_kitlist._icon->setGeometry(40, 58, 50, 50);
+		msgbox_kitlist->tips = new QLabel(msgbox_kitlist);
+		msgbox_kitlist->tips->setGeometry(100, 63, 300, 40);
+		msgbox_kitlist->tips->setFont(tip_font);
 
-	msgbox_kitlist._iter = decltype(msgbox_kitlist._iter)({ msgbox_kitlist.tips, msgbox_kitlist._icon});
+		msgbox_kitlist->_icon = new QLabel(msgbox_kitlist);
+		msgbox_kitlist->_icon->setGeometry(40, 58, 50, 50);
+	}
 
 	// progbar_kitlist
-	progbar_kitlist.progbar = new QProgressBar(background_tips_progbar);
-	progbar_kitlist.progbar->setTextVisible(false);
-	progbar_kitlist.progbar->setObjectName("QProgressBar");
-	progbar_kitlist.progbar->setGeometry(19, 80, 399, 30);
+	; {
+		progbar_kitlist = new struct _progbar_kitlist;
 
-	progbar_kitlist.progbar_schedule = new QLabel(background_tips_progbar);
-	progbar_kitlist.progbar_schedule->setGeometry(378, 120, 40, 40);
+		progbar_kitlist->progbar = new QProgressBar(progbar_kitlist);
+		progbar_kitlist->progbar->setTextVisible(false);
+		progbar_kitlist->progbar->setObjectName("QProgressBar");
+		progbar_kitlist->progbar->setGeometry(19, 80, 399, 30);
 
-	progbar_kitlist.tips = new QLabel(background_tips_progbar);
-	progbar_kitlist.tips->setFont(tip_font);
-	progbar_kitlist.tips->setGeometry(19, 40, 200, 30);
+		progbar_kitlist->progbar_schedule = new QLabel(progbar_kitlist);
+		progbar_kitlist->progbar_schedule->setGeometry(378, 120, 40, 40);
 
-	progbar_kitlist._iter = decltype(msgbox_kitlist._iter)\
-		({ progbar_kitlist.progbar, progbar_kitlist.progbar_schedule, progbar_kitlist.tips });
+		progbar_kitlist->tips = new QLabel(progbar_kitlist);
+		progbar_kitlist->tips->setFont(tip_font);
+		progbar_kitlist->tips->setGeometry(19, 40, 200, 30);
+	}
 
 	// batchprogbar_kitlist
-	batchprogbar_kitlist.progbar = new QProgressBar(background_tips_progbar);
-	batchprogbar_kitlist.progbar->setGeometry(19, 55, 399, 60);
-	batchprogbar_kitlist.progbar->setTextVisible(false);
+	; {
+		batchprogbar_kitlist = new struct _batchprogbar_kitlist;
 
-	batchprogbar_kitlist.tip_exporting = new QLabel(background_tips_progbar);
-	batchprogbar_kitlist.tip_exporting->setGeometry(19, 5, 399, 20);
-	batchprogbar_kitlist.tip_exporting->setFont(tip_font);
+		batchprogbar_kitlist->progbar = new QProgressBar(batchprogbar_kitlist);
+		batchprogbar_kitlist->progbar->setGeometry(19, 55, 399, 60);
+		batchprogbar_kitlist->progbar->setTextVisible(false);
 
-	batchprogbar_kitlist.tip_exportnum = new QLabel(background_tips_progbar);
-	batchprogbar_kitlist.tip_exportnum->setGeometry(19, 28, 399, 20);
-	batchprogbar_kitlist.tip_exportnum->setFont(big_tip_font);
+		batchprogbar_kitlist->tip_exporting = new QLabel(batchprogbar_kitlist);
+		batchprogbar_kitlist->tip_exporting->setGeometry(19, 5, 399, 20);
+		batchprogbar_kitlist->tip_exporting->setFont(tip_font);
 
-	batchprogbar_kitlist.tip_finished = new QLabel(background_tips_progbar);
-	batchprogbar_kitlist.tip_finished->setGeometry(19, 110, 399, 20);
-	batchprogbar_kitlist.tip_finished->setFont(tip_font);
+		batchprogbar_kitlist->tip_exportnum = new QLabel(batchprogbar_kitlist);
+		batchprogbar_kitlist->tip_exportnum->setGeometry(19, 28, 399, 20);
+		batchprogbar_kitlist->tip_exportnum->setFont(big_tip_font);
 
-	batchprogbar_kitlist.tip_residuetime = new QLabel(background_tips_progbar);
-	batchprogbar_kitlist.tip_residuetime->setGeometry(19, 133, 399, 20);
-	batchprogbar_kitlist.tip_residuetime->setFont(tip_font);
+		batchprogbar_kitlist->tip_finished = new QLabel(batchprogbar_kitlist);
+		batchprogbar_kitlist->tip_finished->setGeometry(19, 110, 399, 20);
+		batchprogbar_kitlist->tip_finished->setFont(tip_font);
 
-	batchprogbar_kitlist._iter = decltype(batchprogbar_kitlist._iter)\
-		({ batchprogbar_kitlist.progbar, batchprogbar_kitlist.tip_exporting, batchprogbar_kitlist.tip_exportnum,
-		batchprogbar_kitlist.tip_finished, batchprogbar_kitlist.tip_residuetime });
+		batchprogbar_kitlist->tip_residuetime = new QLabel(batchprogbar_kitlist);
+		batchprogbar_kitlist->tip_residuetime->setGeometry(19, 133, 399, 20);
+		batchprogbar_kitlist->tip_residuetime->setFont(tip_font);
+	}
+
+	m_using_kitlist->addWidget(msgbox_kitlist);
+	m_using_kitlist->addWidget(progbar_kitlist);
+	m_using_kitlist->addWidget(batchprogbar_kitlist);
+	m_using_kitlist->setCurrentWidget(msgbox_kitlist);
 }
 
 PromptBox* PromptBox::s_inst = nullptr;
@@ -105,7 +116,7 @@ PromptBox::PromptBox()
 	connect(m_progbar_timer, &QTimer::timeout, this, &PromptBox::on_progtimer_timeout);
 
 	m_kit = new PromptBox_kit(this);
-	m_using_bar = m_kit->progbar_kitlist.progbar;	// 默认值 反正不让为空指针就ok
+	m_using_bar = m_kit->progbar_kitlist->progbar;	// 默认值 反正不让为空指针就ok
 
 	connect(m_kit->close_btn, &QPushButton::clicked, this, &PromptBox::on_kitbtn_clicked);
 	connect(m_kit->cancle_btn, &QPushButton::clicked, this, &PromptBox::on_kitbtn_clicked);
@@ -136,15 +147,15 @@ PromptBox* PromptBox::inst()
 	return s_inst;
 }
 
-PromptBox_rettype PromptBox::msgbox_go(PromptBox_msgtype msgtype, PromptBox_btntype btntype, tiptype show_tips, bool auto_close)
+PromptBox_rettype PromptBox::msgbox_go(PromptBox_msgtype msgtype, PromptBox_btntype btntype, tiptype show_tips, int interval_ms, bool auto_close)
 {
 	set_MsgBox_style(msgtype, btntype, show_tips);
 	this->show();
 
 	if (auto_close)
 	{
-		m_msgbox_timer->start(3000);			// 3秒内给我消失
-		m_rettype = PromptBox_rettype::Closed;	// 这种情况默认返回关闭状态
+		m_msgbox_timer->start(interval_ms);
+		m_rettype = PromptBox_rettype::Closed;			// 这种情况默认返回关闭状态
 	}
 
 	m_loop->exec();
@@ -172,9 +183,9 @@ void PromptBox::progbar_prepare(int min, int max, Prompt_progbar_type bartype, b
 	m_prog_autoclose = auto_close;
 	m_prog_range = max;
 
-	m_kit->progbar_kitlist.progbar_schedule->setText(QString("%1%").arg(0));
-	m_kit->progbar_kitlist.progbar->setMinimum(min);
-	m_kit->progbar_kitlist.progbar->setMaximum(max);
+	m_kit->progbar_kitlist->progbar_schedule->setText(QString("%1%").arg(0));
+	m_kit->progbar_kitlist->progbar->setMinimum(min);
+	m_kit->progbar_kitlist->progbar->setMaximum(max);
 
 	this->show();
 	m_progbar_timer->start(33);
@@ -185,9 +196,9 @@ void PromptBox::progbar_go(int val, tiptype tips)
 	if (!m_progbar_timer->isActive())
 		return;
 
-	m_kit->progbar_kitlist.progbar->setValue(val);
-	m_kit->progbar_kitlist.tips->setText(tips);
-	m_kit->progbar_kitlist.progbar_schedule->setText(QString("%1%").arg(val * 100 / m_prog_range));
+	m_kit->progbar_kitlist->progbar->setValue(val);
+	m_kit->progbar_kitlist->tips->setText(tips);
+	m_kit->progbar_kitlist->progbar_schedule->setText(QString("%1%").arg(val * 100 / m_prog_range));
 
 	QApplication::processEvents();
 }
@@ -196,21 +207,21 @@ void PromptBox::progbar_go(int val, tiptype tip_exporting, tiptype tip_exportnum
 	if (!m_progbar_timer->isActive())
 		return;
 
-	m_kit->batchprogbar_kitlist.progbar->setValue(val);
-	m_kit->batchprogbar_kitlist.tip_exporting->setText(tip_exporting);
-	m_kit->batchprogbar_kitlist.tip_exportnum->setText(tip_exportnum);
-	m_kit->batchprogbar_kitlist.tip_finished->setText(tip_finished);
-	m_kit->batchprogbar_kitlist.tip_residuetime->setText(tip_residuetime);
+	m_kit->batchprogbar_kitlist->progbar->setValue(val);
+	m_kit->batchprogbar_kitlist->tip_exporting->setText(tip_exporting);
+	m_kit->batchprogbar_kitlist->tip_exportnum->setText(tip_exportnum);
+	m_kit->batchprogbar_kitlist->tip_finished->setText(tip_finished);
+	m_kit->batchprogbar_kitlist->tip_residuetime->setText(tip_residuetime);
 
 	QApplication::processEvents();
 }
 
-void PromptBox::progbar_fakego(int min, int max, int interval, QString tip, bool auto_close)
+void PromptBox::progbar_fakego(int min, int max, int interval_ms, QString tip, bool auto_close)
 {
 	progbar_prepare(min, max, Prompt_progbar_type::Normal_Progbar, auto_close);
 	for (int i = 0; i <= max; ++i)
 	{
-		::Sleep(interval);
+		::Sleep(interval_ms);
 		progbar_go(i, tip);
 	}
 }
@@ -260,16 +271,9 @@ void PromptBox::set_MsgBox_style(PromptBox_msgtype msgtype, PromptBox_btntype bt
 		break;
 	}
 
-	for (QWidget* progwdg : m_kit->msgbox_kitlist._iter)
-		progwdg->show();
+	m_kit->m_using_kitlist->setCurrentWidget(m_kit->msgbox_kitlist);
 
-	for (QWidget* progwdg : m_kit->progbar_kitlist._iter)
-		progwdg->hide();
-
-	for (QWidget* progwdg : m_kit->batchprogbar_kitlist._iter)
-		progwdg->hide();
-
-	m_kit->msgbox_kitlist.tips->setText(show_tip);
+	m_kit->msgbox_kitlist->tips->setText(show_tip);
 
 	auto iconpath_iter = m_msgtype_2_iconpath.find(msgtype);
 	if (iconpath_iter == m_msgtype_2_iconpath.end())
@@ -278,7 +282,7 @@ void PromptBox::set_MsgBox_style(PromptBox_msgtype msgtype, PromptBox_btntype bt
 		iconpath_iter = m_msgtype_2_iconpath.find(msgtype);
 	}
 	QString iconpath = iconpath_iter->second;
-	m_kit->msgbox_kitlist._icon->setPixmap(QPixmap(iconpath).scaled(m_kit->msgbox_kitlist._icon->size()));
+	m_kit->msgbox_kitlist->_icon->setPixmap(QPixmap(iconpath).scaled(m_kit->msgbox_kitlist->_icon->size()));
 }
 void PromptBox::set_Progress_style()
 {
@@ -286,16 +290,9 @@ void PromptBox::set_Progress_style()
 	m_kit->cancle_btn->show();
 	m_kit->confirm_btn->hide();
 
-	for (QWidget* progwdg : m_kit->msgbox_kitlist._iter)
-		progwdg->hide();
+	m_kit->m_using_kitlist->setCurrentWidget(m_kit->progbar_kitlist);
 
-	for (QWidget* progwdg : m_kit->progbar_kitlist._iter)
-		progwdg->show();
-
-	for (QWidget* progwdg : m_kit->batchprogbar_kitlist._iter)
-		progwdg->hide();
-
-	m_using_bar = m_kit->progbar_kitlist.progbar;
+	m_using_bar = m_kit->progbar_kitlist->progbar;
 }
 void PromptBox::set_BatchProg_style()
 {
@@ -303,16 +300,9 @@ void PromptBox::set_BatchProg_style()
 	m_kit->cancle_btn->show();
 	m_kit->confirm_btn->hide();
 
-	for (QWidget* progwdg : m_kit->msgbox_kitlist._iter)
-		progwdg->hide();
+	m_kit->m_using_kitlist->setCurrentWidget(m_kit->batchprogbar_kitlist);
 
-	for (QWidget* progwdg : m_kit->progbar_kitlist._iter)
-		progwdg->hide();
-
-	for (QWidget* progwdg : m_kit->batchprogbar_kitlist._iter)
-		progwdg->show();
-
-	m_using_bar = m_kit->batchprogbar_kitlist.progbar;
+	m_using_bar = m_kit->batchprogbar_kitlist->progbar;
 }
 
 void PromptBox::stop(bool close_)
@@ -335,7 +325,7 @@ void PromptBox::stop(bool close_)
 
 	if (close_)
 	{
-		m_using_bar->reset();		
+		m_using_bar->reset();
 		this->hide();
 	}
 }
