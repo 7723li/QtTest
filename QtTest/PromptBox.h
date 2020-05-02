@@ -37,7 +37,7 @@
 
 typedef const QString& tiptype;
 
-#define PromptBoxInst PromptBox::inst()
+#define PromptBoxInst PromptBox::inst
 
 /*
 @brief
@@ -164,7 +164,7 @@ private:
 
 public:
 	// 获取实例
-	static PromptBox* inst();
+	static PromptBox* inst(QWidget* p = nullptr);
 
 	/*
 	@brief

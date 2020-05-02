@@ -8,18 +8,12 @@
 #include "opencv2/core/core.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
+#include "CameraBase.h"
+
 using namespace AVT;
 using namespace AVT::VmbAPI;
 
-class camerabase
-{
-public:
-	camerabase(){}
-	virtual ~camerabase(){}
-
-};
-
-class AVTCamera : public QObject, public camerabase
+class AVTCamera : public camerabase
 {
 	Q_OBJECT
 
@@ -42,13 +36,11 @@ public:
 
 public:
 	explicit AVTCamera();
-	~AVTCamera();
+	virtual ~AVTCamera();
 
-	int openCamera();
-	int closeCamera();
-	void CopyCurrentFrame(cv::Mat*);
-
-	//virtual int test() override;
+	virtual int openCamera() override;
+	virtual void getOneFrame(cv::Mat* frame) override;
+	virtual int closeCamera() override;
 
 private:
 	VimbaSystem & m_vimba_system;

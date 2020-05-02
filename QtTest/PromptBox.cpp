@@ -140,10 +140,12 @@ PromptBox::~PromptBox()
 
 }
 
-PromptBox* PromptBox::inst()
+PromptBox* PromptBox::inst(QWidget* p)
 {
 	if (nullptr == s_inst)
 		s_inst = new PromptBox;
+
+	s_inst->setParent(p);
 	return s_inst;
 }
 

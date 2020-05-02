@@ -5,7 +5,7 @@ Fuck::Fuck(QWidget *parent)
 {
 	ui.setupUi(this);
 	this->setGeometry(QApplication::desktop()->screenGeometry());
-	this->setWindowFlag(Qt::WindowType::FramelessWindowHint);
+	this->setWindowFlags(Qt::WindowType::FramelessWindowHint);
 
 	btn_1 = new QPushButton("123", this);
 	btn_1->setGeometry(0, 0, 100, 30);
@@ -43,7 +43,7 @@ Fuck::Fuck(QWidget *parent)
 	qDebug() << "---init this->geometry() : " << this->geometry();
 	qDebug() << "---init btn->geometry() : " << btn_1->geometry();
 	qDebug() << "---init st_w->btn_1->geometry() : " << sth_widg->btn_1->geometry();
-	qDebug() << "---init sPromptBoxInst->geometry() : " << PromptBoxInst->geometry();
+	qDebug() << "---init sPromptBoxInst->geometry() : " << PromptBoxInst()->geometry();
 	qDebug() << "---init m_PageVideoCollect->geometry() : " << m_PageVideoCollect->geometry();
 
 	QFile qss_file("./Resources/common.qss");
@@ -60,25 +60,25 @@ Fuck::~Fuck()
 
 void Fuck::slot_1()
 {
- 	PromptBox_rettype a = PromptBoxInst->msgbox_go(PromptBox_msgtype::Succeed, PromptBox_btntype::Confirm_and_Cancle, QStringLiteral("是否手动终结主线程循环"), false);
+ 	PromptBox_rettype a = PromptBoxInst()->msgbox_go(PromptBox_msgtype::Succeed, PromptBox_btntype::Confirm_and_Cancle, QStringLiteral("是否手动终结主线程循环"), false);
  	if (a == PromptBox_rettype::Confirmed)
  	{
  		connect(PromptBox::inst(), &PromptBox::Prompt_probar_finish, this, &Fuck::slot_finish_loop);
  	}
 
  	running = true;
- 	PromptBoxInst->progbar_prepare(0, 100, Prompt_progbar_type::Normal_Progbar, false);
+ 	PromptBoxInst()->progbar_prepare(0, 100, Prompt_progbar_type::Normal_Progbar, false);
  	for (int i = 0; running && i <= 100; ++i)
  	{
  		::Sleep(10);		// 模拟主线程阻塞
- 		PromptBoxInst->progbar_go(i, QStringLiteral("随便写些东西上去"));
+ 		PromptBoxInst()->progbar_go(i, QStringLiteral("随便写些东西上去"));
  	}
 
- 	PromptBoxInst->progbar_prepare(0, 100, Prompt_progbar_type::Batch_Progbar, false);
+ 	PromptBoxInst()->progbar_prepare(0, 100, Prompt_progbar_type::Batch_Progbar, false);
  	for (int i = 0; running && i <= 100; ++i)
  	{
  		::Sleep(10);		// 模拟主线程阻塞
- 		PromptBoxInst->progbar_go(i, 
+ 		PromptBoxInst()->progbar_go(i, 
  			QStringLiteral("正在导出\"哈哈\"的病例"), 
  			QStringLiteral("已完成\"80%\""), 
  			QStringLiteral("导出病例6个"), 
@@ -86,7 +86,7 @@ void Fuck::slot_1()
  			);
  	}
 
- 	 PromptBoxInst->progbar_fakego(0, 100, 30, "123", true);
+ 	 PromptBoxInst()->progbar_fakego(0, 100, 30, "123", true);
 }
 
 void Fuck::slot_finish_loop()
@@ -138,8 +138,8 @@ void Fuck::slot_resolution_resize(int useless)
 	m_using_resolution = changed_resolution;
 
 	// lzx parent与children应随时保证1:1关系 至于为什么不用map 因为map的插入性能比较屎 而这个数据结构主要操作为插入删除 list性能更高(理论上)
-	std::list<QObject*> t_list_parent({ this, PromptBoxInst  });										// 父控件集合
-	std::list<QObjectList> t_list_children({ this->children(), PromptBoxInst->children()  });		// 子控件列表集合
+	std::list<QObject*> t_list_parent({ this, PromptBoxInst()  });										// 父控件集合
+	std::list<QObjectList> t_list_children({ this->children(), PromptBoxInst()->children()  });		// 子控件列表集合
 
 	// lzx 结构 <控件地址 : 找到过了没> 避免有些控件被重复缩放 主要操作为寻找 第二个变量随便 使用static大概可以避免重复插入()
 	static std::map<QWidget*, bool> t_map_found_widget;
@@ -182,7 +182,7 @@ void Fuck::slot_resolution_resize(int useless)
 	qDebug() << "---now this->geometry() : " << this->geometry();
 	qDebug() << "---now btn->geometry() : " << btn_1->geometry();
 	qDebug() << "---now st_w->btn_1->geometry() : " << sth_widg->btn_1->geometry();
-	qDebug() << "---now sPromptBoxInst->geometry() : " << PromptBoxInst->geometry();
+	qDebug() << "---now sPromptBoxInst->geometry() : " << PromptBoxInst()->geometry();
 	qDebug() << "---now m_PageVideoCollect->geometry() : " << m_PageVideoCollect->geometry();
 }
 
@@ -193,4 +193,5 @@ void Fuck::slot_switch_sth_widg()
 void Fuck::slot_switch_PageVideoCollect()
 {
 	m_stackwidget->setCurrentWidget(m_PageVideoCollect);
+	m_PageVideoCollect->prepare_record("");
 }

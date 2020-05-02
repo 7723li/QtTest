@@ -44,15 +44,28 @@ int AVTCamera::openCamera()
 	{
 		feature->GetValue(height);
 	}
-	for (auto frame = m_frame_cache.begin(); frame != m_frame_cache.end(); ++frame)
+	/*for (auto frame = m_frame_cache.begin(); frame != m_frame_cache.end(); ++frame)
 	{
 		frame->reset(new Frame(width * height));
 		(*frame)->RegisterObserver(IFrameObserverPtr(m_using_camera));
 		m_using_camera->AnnounceFrame(*frame);
-	}
+	}*/
 
 	m_using_camera->StartCapture();
 	return OpenStatus::OpenSucceed;
+}
+
+void AVTCamera::getOneFrame(cv::Mat* frame)
+{
+	VmbUchar_t* frame_buffer;
+	VmbUint32_t frame_buffer_size;
+	FramePtr a;
+	a->GetBuffer(frame_buffer);
+	a->GetBufferSize(frame_buffer_size);
+
+	memcpy(frame->data, frame_buffer, frame_buffer_size);
+
+	//	m_using_camera->QueueFrame(m_frame_cache);
 }
 
 int AVTCamera::closeCamera()
@@ -63,11 +76,6 @@ int AVTCamera::closeCamera()
 	return CloseStatus::CloseSucceed;
 }
 
-void AVTCamera::CopyCurrentFrame(cv::Mat*)
-{
-	Fr
-	m_using_camera->QueueFrame(m_frame_cache);
-}
 
 //int AVTCamera::test()
 //{

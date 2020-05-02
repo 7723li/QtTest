@@ -19,9 +19,13 @@
 #include <QTime>
 #include <QTimer>
 
+#include "externalFile/opencv/include/opencv2/opencv.hpp"
+
 #include "PromptBox.h"
 #include "VideoListWidget.h"
-#include "externalFile/opencv/include/opencv2/opencv.hpp"
+#include "AVTCamera.h"
+#include "VideoPlayer_ffmpeg.h"
+
 
 /*
 @brief
@@ -73,6 +77,7 @@ private slots:
 	void slot_timeout_getframe();				// 以1ms的频率 去相机处取1帧
 	void slot_begin_or_finish_record();			// 开始(结束)录制视频
 	void slot_timeout_video_duration_timer();	// 相机录制计时
+	void slot_replay_video(QListWidgetItem* choosen_video);		// 重播录制的视频
 	void slot_exit();							// 退出界面
 
 signals:
@@ -80,6 +85,8 @@ signals:
 
 private:
 	PageVideoRecord_kit* m_PageVideoRecord_kit;
+
+	std::vector<QString> m_recored_videoname_list;	// 当前病例之前录制过的视频 包括最新录制完成的视频
 
 	QString m_examid;
 
@@ -91,5 +98,8 @@ private:
 	cv::Mat m_camera_capture_mat;
 	cv::VideoWriter m_VideoWriter;
 
-	AVTCamera* avt_camera;
+	camerabase* m_camerabase;
+	AVTCamera* m_avt_camera;
+
+	VideoPlayer_ffmpeg* m_videoplayer;
 };
