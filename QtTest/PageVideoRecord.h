@@ -73,7 +73,7 @@ public:
 	void prepare_record(const QString & examid);
 
 private:
-	void clear_video_displayer();
+	void clear_video_displayer();	// 清理图像显示区域
 
 private slots:
 	void slot_timeout_getframe();				// 以1ms的频率 去相机处取1帧
@@ -101,6 +101,5 @@ private:
 	cv::VideoWriter m_VideoWriter;
 
 	camerabase* m_camerabase;
-	AVTCamera* m_avt_camera;
 	int m_openCamera_res;
 };

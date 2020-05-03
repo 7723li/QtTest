@@ -5,6 +5,8 @@
 
 class camerabase : public QObject
 {
+	Q_OBJECT
+
 public:
 	enum OpenStatus
 	{
@@ -28,4 +30,8 @@ public:
 	virtual int openCamera() = 0;
 	virtual void getOneFrame(cv::Mat* frame) = 0;
 	virtual int closeCamera() = 0;
+
+signals:
+	void camera_plugin();
+	void camera_plugout();
 };

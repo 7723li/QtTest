@@ -67,22 +67,6 @@ PageVideoRecord::PageVideoRecord(QWidget* parent) :
 	connect(m_PageVideoRecord_kit->record_btn, &QPushButton::clicked, this, &PageVideoRecord::slot_begin_or_finish_record);
 	connect(m_PageVideoRecord_kit->exit_btn, &QPushButton::clicked, this, &PageVideoRecord::slot_exit);
 	connect(m_PageVideoRecord_kit->video_list, &VideoListWidget::video_choosen, this, &PageVideoRecord::slot_replay_recordedvideo);
-	m_PageVideoRecord_kit->video_list->setMouseTracking(true);
-	clear_video_displayer();
-
-	// todo lzx must delete
-	{
-		for (int i = 0; i < 10; ++i)
-		{
-			QListWidgetItem* new_video_thumbnail = new QListWidgetItem(m_PageVideoRecord_kit->video_list);
-			new_video_thumbnail->setIcon(QIcon(QPixmap(g_test_picname)));
-			new_video_thumbnail->setText('T' + QString::number(m_PageVideoRecord_kit->video_list->count()));
-			new_video_thumbnail->setTextAlignment(Qt::AlignCenter);
-			m_PageVideoRecord_kit->video_list->addItem(new_video_thumbnail);
-
-			m_recored_videoname_list.push_back("./test.mp4");
-		}		
-	}
 
 	m_video_getframe_timer = new QTimer(this);
 	m_video_getframe_timer->setTimerType(Qt::TimerType::PreciseTimer);
@@ -95,7 +79,6 @@ PageVideoRecord::PageVideoRecord(QWidget* parent) :
 	m_record_duration_period = 0;
 
 	m_camerabase = nullptr;
-	m_avt_camera = new AVTCamera;
 }
 
 void PageVideoRecord::prepare_record(const QString & examid)
@@ -104,11 +87,13 @@ void PageVideoRecord::prepare_record(const QString & examid)
 
 	clear_video_displayer();
 
-	// @todo 从数据库中获取之前录制过的视频
+	/* @todo 从数据库中获取之前录制过的视频 */
 	// m_recored_video_list = TopVDB::getRecoredVideo(examid);
 
 	// @todo 寻找相机　并打开 开始取帧
-	m_camerabase = m_avt_camera;
+	static AVTCamera* avt_camera = new AVTCamera;
+
+	m_camerabase = avt_camera;
 	m_openCamera_res = m_camerabase->openCamera();
 	switch (m_openCamera_res)
 	{
@@ -142,14 +127,11 @@ void PageVideoRecord::slot_timeout_getframe()
 	m_camerabase->getOneFrame(&m_camera_capture_mat);
 
 	// 图像显示
-	const QPixmap* to_show_pixmap = m_PageVideoRecord_kit->video_displayer->pixmap();
-	static QImage to_show_iamge;
-	if (!m_camera_capture_mat.empty())
+	QImage to_show_iamge(m_camera_capture_mat.cols, m_camera_capture_mat.rows, QImage::Format_RGB888);
+	if (!to_show_iamge.isNull())
 	{
-		to_show_iamge.scaled(m_camera_capture_mat.cols, m_camera_capture_mat.rows);
 		to_show_iamge.loadFromData(m_camera_capture_mat.data, QImage::Format_Indexed8);
-
-		to_show_pixmap->fromImage(to_show_iamge);
+		m_PageVideoRecord_kit->video_displayer->setPixmap(QPixmap::fromImage(to_show_iamge));
 	}
 
 	// 保存视频
