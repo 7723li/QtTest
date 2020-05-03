@@ -17,13 +17,19 @@ extern "C"
 #include "externalFile/ffmpeg/include/libavutil/pixfmt.h"
 }
 
-class VideoCollector_ffmpeg : public QThread
+/*
+@brief
+流数据处理器
+@note
+使用ffmpeg将视频分割成视频音频流 并将帧数据通过信号发射出去
+*/
+class VideoFrameCollector_ffmpeg : public QThread
 {
 	Q_OBJECT
 
 public:
-	explicit VideoCollector_ffmpeg(QWidget* p = nullptr);
-	~VideoCollector_ffmpeg(){}
+	explicit VideoFrameCollector_ffmpeg(QWidget* p = nullptr);
+	~VideoFrameCollector_ffmpeg(){}
 
 	void set_videoname(const QString& videoname);
 
@@ -37,6 +43,10 @@ private:
 	QString m_videoname;
 };
 
+/*
+@brief
+视频播放器组件
+*/
 typedef struct VideoPlayer_ffmpeg_kit
 {
 public:
@@ -46,6 +56,10 @@ public:
 }
 VideoPlayer_ffmpeg_kit;
 
+/*
+@brief
+视频播放器 从流数据处理器处获取帧数据并播放
+*/
 class VideoPlayer_ffmpeg :public QWidget
 {
 	Q_OBJECT
@@ -61,7 +75,7 @@ private slots:
 	void show_frame(const QPixmap& pixmap);
 
 private:
-	VideoCollector_ffmpeg* m_collector;
+	VideoFrameCollector_ffmpeg* m_collector;
 	
 	VideoPlayer_ffmpeg_kit* m_VideoPlayer_ffmpeg_kit;
 };

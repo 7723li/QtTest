@@ -1,18 +1,18 @@
 #include "VideoPlayer_ffmpeg.h"
 
-VideoCollector_ffmpeg::VideoCollector_ffmpeg(QWidget* p):
+VideoFrameCollector_ffmpeg::VideoFrameCollector_ffmpeg(QWidget* p):
 QThread(p)
 {
 	
 }
 
-void VideoCollector_ffmpeg::set_videoname(const QString& videoname)
+void VideoFrameCollector_ffmpeg::set_videoname(const QString& videoname)
 {
 	QFileInfo to_abs_filepath(videoname);		// 安全起见 无论传进来的是什么都先设为绝对路径
 	m_videoname = to_abs_filepath.absoluteFilePath();
 }
 
-void VideoCollector_ffmpeg::run()
+void VideoFrameCollector_ffmpeg::run()
 {
 	av_register_all();	// 初始化ffmpeg环境
 
@@ -128,9 +128,6 @@ void VideoCollector_ffmpeg::run()
 
 		QImage image((uchar*)out_buffer, video_codeccontext->width, video_codeccontext->height, QImage::Format_RGB32);
 		emit collect_one_frame(QPixmap::fromImage(image));
-
-		if (num >= 5000)
-			break;
 	}
 
 	av_free(out_buffer);						// 清空缓冲区
@@ -157,8 +154,8 @@ VideoPlayer_ffmpeg_kit::VideoPlayer_ffmpeg_kit(QWidget* p)
 VideoPlayer_ffmpeg::VideoPlayer_ffmpeg(QWidget* p):
 QWidget(p)
 {
-	m_collector = new VideoCollector_ffmpeg(this);
-	connect(m_collector, &VideoCollector_ffmpeg::collect_one_frame, this, &VideoPlayer_ffmpeg::show_frame);
+	m_collector = new VideoFrameCollector_ffmpeg(this);
+	connect(m_collector, &VideoFrameCollector_ffmpeg::collect_one_frame, this, &VideoPlayer_ffmpeg::show_frame);
 
 	m_VideoPlayer_ffmpeg_kit = new VideoPlayer_ffmpeg_kit;
 }

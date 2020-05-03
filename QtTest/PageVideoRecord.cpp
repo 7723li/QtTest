@@ -169,7 +169,7 @@ void PageVideoRecord::slot_begin_or_finish_record()
 {
 	if (m_openCamera_res != camerabase::OpenStatus::OpenSuccess)
 	{
-		PromptBoxInst()->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::Confirm, QStringLiteral("没有摄像头正在运行"), 2000, true);
+		PromptBoxInst()->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("没有摄像头正在运行"), 2000, true);
 		return;
 	}
 
