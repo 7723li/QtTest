@@ -23,14 +23,19 @@
 */
 class VideoListWidget : public QListWidget
 {
+	Q_OBJECT
+
 public:
 	explicit VideoListWidget(QWidget* p);
 	~VideoListWidget();
 
 protected:
-	void mousePressEvent(QMouseEvent* e) override;
-	void mouseMoveEvent(QMouseEvent* e) override;
-	void mouseReleaseEvent(QMouseEvent* e) override;
+	void mousePressEvent(QMouseEvent* e);
+	void mouseMoveEvent(QMouseEvent* e);
+	void mouseReleaseEvent(QMouseEvent* e);
+
+signals:
+	void video_choosen(QListWidgetItem*);
 
 private:
 	bool m_is_left_clicked;

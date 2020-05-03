@@ -47,6 +47,8 @@ public:
 
 	QWidget* video_list_background;		// 视频存放列表的纯白背景板
 	VideoListWidget* video_list;		// 视频存放列表
+
+	VideoPlayer_ffmpeg* videoplayer;
 }
 PageVideoRecord_kit;
 
@@ -77,7 +79,7 @@ private slots:
 	void slot_timeout_getframe();				// 以1ms的频率 去相机处取1帧
 	void slot_begin_or_finish_record();			// 开始(结束)录制视频
 	void slot_timeout_video_duration_timer();	// 相机录制计时
-	void slot_replay_video(QListWidgetItem* choosen_video);		// 重播录制的视频
+	void slot_replay_recordedvideo(QListWidgetItem* choosen_video);		// 重播录制的视频
 	void slot_exit();							// 退出界面
 
 signals:
@@ -100,6 +102,5 @@ private:
 
 	camerabase* m_camerabase;
 	AVTCamera* m_avt_camera;
-
-	VideoPlayer_ffmpeg* m_videoplayer;
+	int m_openCamera_res;
 };

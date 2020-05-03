@@ -22,8 +22,7 @@ public:
 	{
 		OpenSucceed = 0,
 		NoCameras,
-		OpenFailed,
-		AlreadyRunning,
+		OpenFailed
 	}
 	OpenStatus;
 

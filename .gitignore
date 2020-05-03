@@ -3,6 +3,7 @@
 *.suo
 *.vcxproj.filters
 *.vcxproj.user
+*.mp4
 
 /x64
 /QtTest/GeneratedFiles

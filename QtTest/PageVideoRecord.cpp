@@ -1,5 +1,8 @@
 #include "PageVideoRecord.h"
 
+const QString g_test_picname = "./test.jpg";
+const QString g_test_videoname = "./test.mp4";
+
 PageVideoRecord_kit::PageVideoRecord_kit(QWidget* p)
 {
 	video_displayer = new QLabel(p);
@@ -48,6 +51,10 @@ PageVideoRecord_kit::PageVideoRecord_kit(QWidget* p)
 	video_list->setViewMode(QListView::IconMode);
 	video_list->setWrapping(false);
 	video_list->setSpacing(20);
+
+	videoplayer = new VideoPlayer_ffmpeg(p);
+	videoplayer->hide();								// 默认隐藏
+	videoplayer->setGeometry(100, 100, 1000, 1000);
 }
 
 PageVideoRecord::PageVideoRecord(QWidget* parent) :
@@ -59,8 +66,23 @@ PageVideoRecord::PageVideoRecord(QWidget* parent) :
 	m_PageVideoRecord_kit = new PageVideoRecord_kit(this);
 	connect(m_PageVideoRecord_kit->record_btn, &QPushButton::clicked, this, &PageVideoRecord::slot_begin_or_finish_record);
 	connect(m_PageVideoRecord_kit->exit_btn, &QPushButton::clicked, this, &PageVideoRecord::slot_exit);
-	connect(m_PageVideoRecord_kit->video_list, &QListWidget::itemClicked, this, &PageVideoRecord::slot_replay_video);
+	connect(m_PageVideoRecord_kit->video_list, &VideoListWidget::video_choosen, this, &PageVideoRecord::slot_replay_recordedvideo);
+	m_PageVideoRecord_kit->video_list->setMouseTracking(true);
 	clear_video_displayer();
+
+	// todo lzx must delete
+	{
+		for (int i = 0; i < 10; ++i)
+		{
+			QListWidgetItem* new_video_thumbnail = new QListWidgetItem(m_PageVideoRecord_kit->video_list);
+			new_video_thumbnail->setIcon(QIcon(QPixmap(g_test_picname)));
+			new_video_thumbnail->setText('T' + QString::number(m_PageVideoRecord_kit->video_list->count()));
+			new_video_thumbnail->setTextAlignment(Qt::AlignCenter);
+			m_PageVideoRecord_kit->video_list->addItem(new_video_thumbnail);
+
+			m_recored_videoname_list.push_back("./test.mp4");
+		}		
+	}
 
 	m_video_getframe_timer = new QTimer(this);
 	m_video_getframe_timer->setTimerType(Qt::TimerType::PreciseTimer);
@@ -74,16 +96,10 @@ PageVideoRecord::PageVideoRecord(QWidget* parent) :
 
 	m_camerabase = nullptr;
 	m_avt_camera = new AVTCamera;
-
-	m_videoplayer = new VideoPlayer_ffmpeg(this);
-	m_videoplayer->hide();
-	m_videoplayer->setGeometry(100, 100, 1000, 1000);
 }
 
 void PageVideoRecord::prepare_record(const QString & examid)
 {
-	m_videoplayer->play("C:\\Users\\7723\\Desktop\\animate\\1080P_4000K_241420141.mp4");
-
 	m_examid = examid;
 
 	clear_video_displayer();
@@ -93,20 +109,18 @@ void PageVideoRecord::prepare_record(const QString & examid)
 
 	// @todo 寻找相机　并打开 开始取帧
 	m_camerabase = m_avt_camera;
-	int openCamera_res = m_camerabase->openCamera();
-	switch (openCamera_res)
+	m_openCamera_res = m_camerabase->openCamera();
+	switch (m_openCamera_res)
 	{
 	case AVTCamera::OpenStatus::OpenSucceed:
+		PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("相机打开成功"), 2000, true);
 		m_video_getframe_timer->start(1);
 		break;
 	case AVTCamera::OpenStatus::OpenFailed:
-		PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::Confirm, QStringLiteral("相机打开失败，请尝试检查连接并重新插入"), 0, false);
+		PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("相机打开失败，请尝试检查连接并重新插入"), 2000, true);
 		break;
 	case AVTCamera::OpenStatus::NoCameras:
-		PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::Confirm, QStringLiteral("没有找到相机，请尝试检查连接并重新插入"), 0, false);
-		break;
-	case AVTCamera::OpenStatus::AlreadyRunning:
-		m_video_getframe_timer->start(1);
+		PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("没有找到相机，请尝试检查连接并重新插入"), 2000, true);
 		break;
 	default:
 		break;
@@ -141,20 +155,29 @@ void PageVideoRecord::slot_timeout_getframe()
 	// 保存视频
 	if (m_record_duration_timer->isActive())
 	{
+		if (!m_VideoWriter.isOpened() &&
+			!m_VideoWriter.open(g_test_videoname.toStdString().c_str(), CV_FOURCC('M', 'J', 'P', 'G'), 30, cv::Size(m_camera_capture_mat.cols, m_camera_capture_mat.rows)))
+		{
+			return;
+		}
+
 		m_VideoWriter.write(m_camera_capture_mat);
 	}
 }
 
 void PageVideoRecord::slot_begin_or_finish_record()
 {
+	if (m_openCamera_res != camerabase::OpenStatus::OpenSuccess)
+	{
+		PromptBoxInst()->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::Confirm, QStringLiteral("没有摄像头正在运行"), 2000, true);
+		return;
+	}
+
 	if (!m_record_duration_timer->isActive())	// 没在录像状态 开始录像
 	{
 		m_PageVideoRecord_kit->video_time_display->show();
 		m_record_duration_period = 0;
 		m_PageVideoRecord_kit->video_time_display->setText("00:00:00");
-
-		// @todo 根据视频名称 初始化视频头
-		// m_VideoWriter.open();
 
 		m_record_duration_timer->start(1000);
 	}
@@ -166,10 +189,13 @@ void PageVideoRecord::slot_begin_or_finish_record()
 
 		// 放置缩略图
 		QListWidgetItem* new_video_thumbnail = new QListWidgetItem(m_PageVideoRecord_kit->video_list);
-		new_video_thumbnail->setIcon(QIcon(QPixmap("E:/codes/TopV/V100/V2.85+/TopV2/data/image/20191231170125cut_0_60.bmp")));
+		new_video_thumbnail->setIcon(QIcon(QPixmap(g_test_picname)));
 		new_video_thumbnail->setText('T' + QString::number(m_PageVideoRecord_kit->video_list->count()));
 		new_video_thumbnail->setTextAlignment(Qt::AlignCenter);
 		m_PageVideoRecord_kit->video_list->addItem(new_video_thumbnail);
+
+		// 放入录制的视频名称
+		m_recored_videoname_list.push_back("./test.mp4");
 
 		// 保存视频
 		m_VideoWriter.release();
@@ -190,8 +216,11 @@ void PageVideoRecord::slot_timeout_video_duration_timer()
 	}
 }
 
-void PageVideoRecord::slot_replay_video(QListWidgetItem* choosen_video)
+void PageVideoRecord::slot_replay_recordedvideo(QListWidgetItem* choosen_video)
 {
+	if (nullptr == choosen_video)
+		return;
+
 	int idx = 0;
 	for (idx = 0; idx < m_PageVideoRecord_kit->video_list->count(); ++idx)
 	{
@@ -209,7 +238,7 @@ void PageVideoRecord::slot_replay_video(QListWidgetItem* choosen_video)
 	const QString & to_play_video_name = m_recored_videoname_list[idx];
 	// @todo 播放
 
-	m_videoplayer->play(to_play_video_name);
+	m_PageVideoRecord_kit->videoplayer->play(to_play_video_name);
 }
 
 void PageVideoRecord::slot_exit()

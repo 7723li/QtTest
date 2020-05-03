@@ -32,4 +32,8 @@ void VideoListWidget::mouseMoveEvent(QMouseEvent* e)
 void VideoListWidget::mouseReleaseEvent(QMouseEvent* e)
 {
 	m_is_left_clicked = false;
+
+	QListWidgetItem* choosen_widget = this->itemAt(e->pos());
+
+	emit video_choosen(choosen_widget);
 }
