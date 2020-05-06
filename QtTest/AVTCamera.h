@@ -1,143 +1,100 @@
 #pragma once
 
-#include <queue>
-#include <QObject>
 #include <QLoggingCategory>
-#include <QMutex>
 #include <QMetaType>
 
-#include "AVTCamera/include/VimbaCPP/Include/VimbaCPP.h"
+#include <mutex>
 
-#include "opencv2/core/core.hpp"
-#include "opencv2/highgui/highgui.hpp"
+#include "AVTCamera/include/VimbaCPP/Include/VimbaCPP.h"
+#include "AVTCamera/include/VimbaCPP/Include/VmbTransform.h"
+#include "AVTCamera/include/VimbaCPP/Include/VmbCommonTypes.h"
+#include "AVTCamera/include/VimbaCPP/Include/VmbTransformTypes.h"
 
 #include "CameraBase.h"
 
 using namespace AVT;
 using namespace AVT::VmbAPI;
 
+/*
+@brief
+Vimba的相机观察者 用于检测相机拔插
+*/
 class CameraObserver : public QObject, public ICameraListObserver
 {
 	Q_OBJECT
 
 public:
-	virtual void CameraListChanged(CameraPtr pCamera, UpdateTriggerType reason)
-	{
-		if (UpdateTriggerPluggedIn == reason ||
-			UpdateTriggerPluggedOut == reason)
-		{
-			emit AVT_CameraListChanged(reason);
-		}
-	}
+	/*
+	brief
+	相机拔插回调函数 继承自ICameraListObserver
+	*/
+	virtual void CameraListChanged(CameraPtr pCamera, UpdateTriggerType reason) override;
 
 signals:
-	void AVT_CameraListChanged(int reasion);
+	void obsr_cameralist_changed(int reasion);	// 用于通知相机拔插事件发生的信号
 };
 
+/*
+@brief
+Vimba的帧回调观察者 实际作用为Vimba系统的回调函数FrameReceived
+*/
 class FrameObserver : public QObject, public IFrameObserver
 {
 	Q_OBJECT
 
 public:
-	FrameObserver(CameraPtr camera) :
-		IFrameObserver(camera)
-	{
+	FrameObserver(CameraPtr camera);
 
-	}
-
-	virtual void FrameReceived(const FramePtr newframe)
-	{
-		bool is_inqueue = true;
-		VmbFrameStatusType eReceiveStatus;
-
-		if (VmbErrorSuccess == newframe->GetReceiveStatus(eReceiveStatus))
-		{
-			m_mutex.lock();
-			m_frame_queue.push_back(newframe);
-			emit obsr_get_new_frame();
-			m_mutex.unlock();
-			is_inqueue = false;
-		}
-
-		if (is_inqueue)
-		{
-			m_pCamera->QueueFrame(newframe);
-		}
-	}
-
-	FramePtr get_frame_queue(std::list<FramePtr>& getter)
-	{
-		m_mutex.lock();
-		FramePtr res;
-		if (!m_frame_queue.empty())
-		{
-			std::swap(m_frame_queue, getter);
-		}
-		m_mutex.unlock();
-		return res;
-	}
-
-	void clear_frame_queue()
-	{
-		m_mutex.lock();
-		std::list<FramePtr> empty;
-		std::swap(m_frame_queue, empty);
-		m_mutex.unlock();
-	}
+	/*
+	brief
+	帧回调函数 继承自IFrameObserver
+	*/
+	virtual void FrameReceived(const FramePtr newframe) override;
 
 signals:
-	void obsr_get_new_frame();
-
-private:
-	std::list<FramePtr> m_frame_queue;
-	QMutex m_mutex;
+	void obsr_get_new_frame(FramePtr);		// 用于通知相机新货到达的信号
 };
 
+/*
+@brief
+AVT相机本体 继承至相机父类camerabase并实现接口
+*/
 class AVTCamera : public camerabase
 {
 	Q_OBJECT
 
 public:
-	typedef enum OpenStatus
-	{
-		OpenSucceed = 0,
-		NoCameras,
-		OpenFailed
-	}
-	OpenStatus;
-
-	typedef enum CloseStatus
-	{
-		CloseSucceed = 0,
-		CloseFailed,
-	}
-	CloseStatus;
-
-public:
 	explicit AVTCamera();
 	virtual ~AVTCamera();
 
-	virtual int openCamera() override;
-	virtual void getOneFrame(cv::Mat* frame) override;
-	virtual int closeCamera() override;
+	virtual int openCamera();
+	virtual bool get_one_frame(cv::Mat*);
+	virtual int closeCamera();
 
 private slots:
-	void slot_camera_list_changed(int reason);
-	void slot_get_new_frame();
+	/*
+	@brief
+	从相机观察期出收到相机拔插信号 判断是拔还是插 然后发射对应信号给录制界面(PageVideoRecord)
+	@param[1] reason 相机是拔还是插 AVT::VmbAPI::UpdateTriggerType
+	*/
+	void slot_obsr_camera_list_changed(int reason);
+	/*
+	@brief
+	从帧观察者处接收新帧到达信号 并将帧解析成通用格式(uchar*) 然后存储到数据队列 等待录制界面(PageVideoRecord)获取
+	@param[1] frame 回调函数获取的帧 FramePtr
+	*/
+	void slot_obsr_get_new_frame(FramePtr frame);
 
 private:
-	VimbaSystem & m_vimba_system;
+	VimbaSystem & m_vimba_system;				// Vimba系统
 
-	ICameraListObserverPtr m_CameraObserver;
-	IFrameObserverPtr m_FrameObserver;
+	ICameraListObserverPtr m_CameraObserver;	// 拔插事件观察者
+	IFrameObserverPtr m_FrameObserver;			// 帧回调观察者
 
-	CameraPtrVector m_avaliable_camera_list;
-	CameraPtr m_using_camera;
+	CameraPtrVector m_avaliable_camera_list;	// 相机列表
+	CameraPtr m_using_camera;					// 当前使用中的相机 默认为相机列表第一个
 
-	VmbInt64_t m_frame_width;
-	VmbInt64_t m_frame_height;
-	VmbInt64_t m_frame_pixelformat;
+	VmbInt64_t m_frame_pixelformat;				// 图像格式
 
-	std::list<FramePtr> m_frame_queue;
-	QMutex m_frame_mutex;
+	std::mutex m_mutex;							// 观察者回调函数 与 录制界面均需用到数据队列 需要避免出现调用冲突
 };

@@ -76,7 +76,7 @@ private:
 	void clear_video_displayer();	// 清理图像显示区域
 
 private slots:
-	void slot_timeout_getframe();				// 以1ms的频率 去相机处取1帧
+	void slot_get_one_frame();					// 从相机处获取一帧
 	void slot_begin_or_finish_record();			// 开始(结束)录制视频
 	void slot_timeout_video_duration_timer();	// 相机录制计时
 	void slot_replay_recordedvideo(QListWidgetItem* choosen_video);		// 重播录制的视频
@@ -90,16 +90,17 @@ private:
 
 	std::vector<QString> m_recored_videoname_list;	// 当前病例之前录制过的视频 包括最新录制完成的视频
 
-	QString m_examid;
+	QString m_examid;					// 病例ID 由外部传入
 
-	QTimer* m_video_getframe_timer;		// 用于取帧的定时器
+	QTimer* m_get_frame_timer;			// 用于从相机获取帧数据的定时器
 
 	QTimer* m_record_duration_timer;	// 用于记录录像时长的定时器
 	int m_record_duration_period;		// 录像时长定时器溢出次数 = 录像时长秒数
 
-	cv::Mat m_camera_capture_mat;
-	cv::VideoWriter m_VideoWriter;
+	cv::Mat m_mat;						// cv::Mat->QImage->QPixmap->QLabel显像
+	cv::VideoWriter m_VideoWriter;		// 将Mat写入到视频
 
-	camerabase* m_camerabase;
-	int m_openCamera_res;
+	camerabase* m_camerabase;			// 相机封装 通用相机接口
+	AVTCamera* m_avt_camera;			// AVT相机
+	int m_openCamera_res;				// 相机打开状态
 };

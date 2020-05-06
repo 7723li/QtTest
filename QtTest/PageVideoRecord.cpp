@@ -68,9 +68,9 @@ PageVideoRecord::PageVideoRecord(QWidget* parent) :
 	connect(m_PageVideoRecord_kit->exit_btn, &QPushButton::clicked, this, &PageVideoRecord::slot_exit);
 	connect(m_PageVideoRecord_kit->video_list, &VideoListWidget::video_choosen, this, &PageVideoRecord::slot_replay_recordedvideo);
 
-	m_video_getframe_timer = new QTimer(this);
-	m_video_getframe_timer->setTimerType(Qt::TimerType::PreciseTimer);
-	connect(m_video_getframe_timer, &QTimer::timeout, this, &PageVideoRecord::slot_timeout_getframe);
+	m_get_frame_timer = new QTimer(this);
+	m_get_frame_timer->setTimerType(Qt::TimerType::PreciseTimer);
+	connect(m_get_frame_timer, &QTimer::timeout, this, &PageVideoRecord::slot_get_one_frame);
 
 	m_record_duration_timer = new QTimer(this);
 	m_record_duration_timer->setTimerType(Qt::TimerType::PreciseTimer);
@@ -78,7 +78,8 @@ PageVideoRecord::PageVideoRecord(QWidget* parent) :
 	
 	m_record_duration_period = 0;
 
-	m_camerabase = nullptr;
+	m_avt_camera = new AVTCamera;
+	m_camerabase = m_avt_camera;	// 默认使用AVT摄像头
 }
 
 void PageVideoRecord::prepare_record(const QString & examid)
@@ -90,21 +91,23 @@ void PageVideoRecord::prepare_record(const QString & examid)
 	/* @todo 从数据库中获取之前录制过的视频 */
 	// m_recored_video_list = TopVDB::getRecoredVideo(examid);
 
-	// @todo 寻找相机　并打开 开始取帧
-	static AVTCamera* avt_camera = new AVTCamera;
-
-	m_camerabase = avt_camera;
-	m_openCamera_res = m_camerabase->openCamera();
+	int w = 0, h = 0;
+	m_camerabase->closeCamera();						// 打开前先关闭 重置相机
+	m_openCamera_res = m_camerabase->openCamera();		// 打开相机
 	switch (m_openCamera_res)
 	{
-	case AVTCamera::OpenStatus::OpenSucceed:
+	case camerabase::OpenStatus::OpenSuccess:
+		m_camerabase->get_frame_wh(w, h);				// 重置用来接收数据的帧
+		m_mat.release();
+		m_mat = cv::Mat(h, w, CV_8UC1);
+
+		m_get_frame_timer->start(1);					// 开启定时器 开始获取帧并显示
 		PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("相机打开成功"), 2000, true);
-		m_video_getframe_timer->start(1);
 		break;
-	case AVTCamera::OpenStatus::OpenFailed:
+	case camerabase::OpenStatus::OpenFailed:
 		PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("相机打开失败，请尝试检查连接并重新插入"), 2000, true);
 		break;
-	case AVTCamera::OpenStatus::NoCameras:
+	case camerabase::OpenStatus::NoCameras:
 		PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("没有找到相机，请尝试检查连接并重新插入"), 2000, true);
 		break;
 	default:
@@ -121,29 +124,27 @@ void PageVideoRecord::clear_video_displayer()
 	m_PageVideoRecord_kit->video_displayer->setPixmap(pixmap);
 }
 
-void PageVideoRecord::slot_timeout_getframe()
+void PageVideoRecord::slot_get_one_frame()
 {
-	// @todo 获取一帧
-	m_camerabase->getOneFrame(&m_camera_capture_mat);
+	static cv::Mat* m_mat_addr = &m_mat;
+	if (false == m_camerabase->get_one_frame(m_mat_addr))
+		return;
+
+	QImage image(m_mat.data, m_mat.cols, m_mat.rows, static_cast<int>(m_mat.step), QImage::Format_Grayscale8);
 
 	// 图像显示
-	QImage to_show_iamge(m_camera_capture_mat.cols, m_camera_capture_mat.rows, QImage::Format_RGB888);
-	if (!to_show_iamge.isNull())
+	if (!image.isNull())
 	{
-		to_show_iamge.loadFromData(m_camera_capture_mat.data, QImage::Format_Indexed8);
-		m_PageVideoRecord_kit->video_displayer->setPixmap(QPixmap::fromImage(to_show_iamge));
+
+		m_PageVideoRecord_kit->video_displayer->setPixmap(QPixmap::fromImage(image).
+			scaled(m_PageVideoRecord_kit->video_displayer->size(), Qt::KeepAspectRatio));
 	}
 
 	// 保存视频
-	if (m_record_duration_timer->isActive())
+	if (m_record_duration_timer->isActive()
+		&& m_VideoWriter.isOpened())
 	{
-		if (!m_VideoWriter.isOpened() &&
-			!m_VideoWriter.open(g_test_videoname.toStdString().c_str(), CV_FOURCC('M', 'J', 'P', 'G'), 30, cv::Size(m_camera_capture_mat.cols, m_camera_capture_mat.rows)))
-		{
-			return;
-		}
-
-		m_VideoWriter.write(m_camera_capture_mat);
+		m_VideoWriter.write(m_mat);
 	}
 }
 
@@ -161,13 +162,14 @@ void PageVideoRecord::slot_begin_or_finish_record()
 		m_record_duration_period = 0;
 		m_PageVideoRecord_kit->video_time_display->setText("00:00:00");
 
+		m_VideoWriter.open(g_test_videoname.toStdString().c_str(), CV_FOURCC('M', 'J', 'P', 'G'), 30, cv::Size(m_mat.cols, m_mat.rows));
+
 		m_record_duration_timer->start(1000);
 	}
 	else										// 停止录像
 	{
 		m_PageVideoRecord_kit->video_time_display->hide();
 		m_record_duration_timer->stop();
-		m_video_getframe_timer->stop();
 
 		// 放置缩略图
 		QListWidgetItem* new_video_thumbnail = new QListWidgetItem(m_PageVideoRecord_kit->video_list);
@@ -236,7 +238,7 @@ void PageVideoRecord::slot_exit()
 		return;
 	}
 
-	// @todo 关闭摄像头
+	m_get_frame_timer->stop();
 	m_camerabase->closeCamera();
 
 	// 发射一个本页面关闭的信号 接不接收无所谓
