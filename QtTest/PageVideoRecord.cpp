@@ -1,11 +1,11 @@
 #include "PageVideoRecord.h"
 
 const QString g_test_picname = "./test.jpg";
-const QString g_test_videoname = "./test.mp4";
+const QString g_test_videoname = "./test.avi";
 
 PageVideoRecord_kit::PageVideoRecord_kit(QWidget* p)
 {
-	video_displayer = new QLabel(p);
+	video_displayer = new VideoDisplayWidget(p);
 	video_displayer->setGeometry(10, 10, 1186, 885);
 
 	bed_num_label = new QLabel(p);
@@ -75,7 +75,7 @@ PageVideoRecord::PageVideoRecord(QWidget* parent) :
 	m_record_duration_timer = new QTimer(this);
 	m_record_duration_timer->setTimerType(Qt::TimerType::PreciseTimer);
 	connect(m_record_duration_timer, &QTimer::timeout, this, &PageVideoRecord::slot_timeout_video_duration_timer);
-	
+
 	m_record_duration_period = 0;
 
 	m_avt_camera = new AVTCamera;
@@ -92,16 +92,18 @@ void PageVideoRecord::prepare_record(const QString & examid)
 	// m_recored_video_list = TopVDB::getRecoredVideo(examid);
 
 	int w = 0, h = 0;
-	m_camerabase->closeCamera();						// 打开前先关闭 重置相机
-	m_openCamera_res = m_camerabase->openCamera();		// 打开相机
-	switch (m_openCamera_res)
+	int closeCam_res = m_camerabase->closeCamera();		// 打开前先关闭 重置相机 以免之前有错误操作导致拉胯
+	int openCamera_res = m_camerabase->openCamera();	// 打开相机
+	switch (openCamera_res)
 	{
 	case camerabase::OpenStatus::OpenSuccess:
 		m_camerabase->get_frame_wh(w, h);				// 重置用来接收数据的帧
-		m_mat.release();
+		if (!m_mat.empty())
+			m_mat.release();
 		m_mat = cv::Mat(h, w, CV_8UC1);
+		m_get_frame_timer->start(1);					// 开启定时器 开始获取帧并显示 理论频率1s/1ms=1000Hz 开足马力
 
-		m_get_frame_timer->start(1);					// 开启定时器 开始获取帧并显示
+		// 提示成功并借机等待2秒 等待过程中相机运行稳定然后可以获取比较准确的fps数值 可用于写入视频
 		PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("相机打开成功"), 2000, true);
 		break;
 	case camerabase::OpenStatus::OpenFailed:
@@ -118,39 +120,39 @@ void PageVideoRecord::prepare_record(const QString & examid)
 void PageVideoRecord::clear_video_displayer()
 {
 	// lzx 20200430 将一张deep dark fantasy的图片插入到视频显示窗口 作为初始、失败、错误背景
-	static QPixmap pixmap;
-	pixmap.scaled(m_PageVideoRecord_kit->video_displayer->size());
-	pixmap.fill(Qt::black);
-	m_PageVideoRecord_kit->video_displayer->setPixmap(pixmap);
+	if (m_mat.empty())
+	{
+		m_mat = cv::Mat(m_PageVideoRecord_kit->video_displayer->height(), m_PageVideoRecord_kit->video_displayer->width(), CV_8UC1);
+	}
+	memset(m_mat.data, 1, m_mat.cols * m_mat.rows);
+	m_PageVideoRecord_kit->video_displayer->show_frame(&m_mat);
 }
 
 void PageVideoRecord::slot_get_one_frame()
 {
-	static cv::Mat* m_mat_addr = &m_mat;
-	if (false == m_camerabase->get_one_frame(m_mat_addr))
+	if (false == m_camerabase->get_one_frame(&m_mat))
 		return;
 
-	QImage image(m_mat.data, m_mat.cols, m_mat.rows, static_cast<int>(m_mat.step), QImage::Format_Grayscale8);
-
-	// 图像显示
-	if (!image.isNull())
+	// 显示
+	if (!m_mat.empty())
 	{
-
-		m_PageVideoRecord_kit->video_displayer->setPixmap(QPixmap::fromImage(image).
-			scaled(m_PageVideoRecord_kit->video_displayer->size(), Qt::KeepAspectRatio));
+		m_PageVideoRecord_kit->video_displayer->show_frame(&m_mat);
+		m_PageVideoRecord_kit->video_displayer->update();
 	}
 
-	// 保存视频
-	if (m_record_duration_timer->isActive()
-		&& m_VideoWriter.isOpened())
+	// 写入帧
+	if (m_record_duration_timer->isActive())
 	{
-		m_VideoWriter.write(m_mat);
+		if (m_VideoWriter.isOpened())
+		{
+			m_VideoWriter.write(m_mat);
+		}
 	}
 }
 
 void PageVideoRecord::slot_begin_or_finish_record()
 {
-	if (m_openCamera_res != camerabase::OpenStatus::OpenSuccess)
+	if (!m_get_frame_timer->isActive())
 	{
 		PromptBoxInst()->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("没有摄像头正在运行"), 2000, true);
 		return;
@@ -162,9 +164,8 @@ void PageVideoRecord::slot_begin_or_finish_record()
 		m_record_duration_period = 0;
 		m_PageVideoRecord_kit->video_time_display->setText("00:00:00");
 
-		m_VideoWriter.open(g_test_videoname.toStdString().c_str(), CV_FOURCC('M', 'J', 'P', 'G'), 30, cv::Size(m_mat.cols, m_mat.rows));
-
-		m_record_duration_timer->start(1000);
+		if(m_VideoWriter.open(g_test_videoname.toStdString().c_str(), CV_FOURCC('M', 'J', 'P', 'G'), 120, cv::Size(m_mat.cols, m_mat.rows), false))
+			m_record_duration_timer->start(1000);
 	}
 	else										// 停止录像
 	{
@@ -179,7 +180,7 @@ void PageVideoRecord::slot_begin_or_finish_record()
 		m_PageVideoRecord_kit->video_list->addItem(new_video_thumbnail);
 
 		// 放入录制的视频名称
-		m_recored_videoname_list.push_back("./test.mp4");
+		m_recored_videoname_list.push_back(g_test_videoname);
 
 		// 保存视频
 		m_VideoWriter.release();
@@ -238,8 +239,12 @@ void PageVideoRecord::slot_exit()
 		return;
 	}
 
-	m_get_frame_timer->stop();
-	m_camerabase->closeCamera();
+	do
+	{
+		m_get_frame_timer->stop();
+	}
+	while (m_get_frame_timer->isActive());
+	int close_status = m_camerabase->closeCamera();
 
 	// 发射一个本页面关闭的信号 接不接收无所谓
 	emit PageVideoRecord_exit(m_examid);

@@ -83,7 +83,7 @@ public:
 	@note
 	图像面积"通常"与需要申请的内存空间大小相等
 	*/
-	virtual void get_frame_area(int& area){ area = m_frame_width * m_frame_height; };
+	virtual int get_frame_area(){ return m_frame_area; }
 
 	/*
 	@brief
@@ -97,12 +97,19 @@ public:
 	*/
 	virtual int get_frame_queue_size(){ return m_framedata_queue.size(); }
 
+	/*
+	@brief
+	获取当前fps
+	*/
+	virtual int get_fps() { return m_fps; }
+
 protected:
 	int m_frame_width;		// 图像宽度
 	int m_frame_height;		// 图像高度
 	int m_frame_area;		// 图像面积
 
 	bool m_is_connected;	// 连接状态
+	int m_fps;				// fps
 
 	std::queue<uchar*> m_framedata_queue;	// 帧数据队列
 

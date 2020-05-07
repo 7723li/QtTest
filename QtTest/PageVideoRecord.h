@@ -18,6 +18,10 @@
 #include <QHeaderView>
 #include <QTime>
 #include <QTimer>
+#include <QtConcurrent/QtConcurrent>
+#include <QFuture>
+
+#include <thread>
 
 #include "externalFile/opencv/include/opencv2/opencv.hpp"
 
@@ -25,6 +29,7 @@
 #include "VideoListWidget.h"
 #include "AVTCamera.h"
 #include "VideoPlayer_ffmpeg.h"
+#include "VideoDisplayWidget.hpp"
 
 
 /*
@@ -38,7 +43,7 @@ public:
 	~PageVideoRecord_kit(){}
 
 public:
-	QLabel* video_displayer;			// 视频显示器
+	VideoDisplayWidget* video_displayer;// 视频显示器
 	QLabel* bed_num_label;				// 床号
 	QLabel* patient_name_label;			// 姓名
 	QLabel* video_time_display;			// 视频时长显示
@@ -76,11 +81,11 @@ private:
 	void clear_video_displayer();	// 清理图像显示区域
 
 private slots:
-	void slot_get_one_frame();					// 从相机处获取一帧
-	void slot_begin_or_finish_record();			// 开始(结束)录制视频
-	void slot_timeout_video_duration_timer();	// 相机录制计时
+	void slot_get_one_frame();											// 从相机处获取一帧
+	void slot_begin_or_finish_record();									// 开始(结束)录制视频
+	void slot_timeout_video_duration_timer();							// 相机录制计时
 	void slot_replay_recordedvideo(QListWidgetItem* choosen_video);		// 重播录制的视频
-	void slot_exit();							// 退出界面
+	void slot_exit();													// 退出界面
 
 signals:
 	void PageVideoRecord_exit(const QString & examid);
@@ -93,7 +98,6 @@ private:
 	QString m_examid;					// 病例ID 由外部传入
 
 	QTimer* m_get_frame_timer;			// 用于从相机获取帧数据的定时器
-
 	QTimer* m_record_duration_timer;	// 用于记录录像时长的定时器
 	int m_record_duration_period;		// 录像时长定时器溢出次数 = 录像时长秒数
 
@@ -102,5 +106,4 @@ private:
 
 	camerabase* m_camerabase;			// 相机封装 通用相机接口
 	AVTCamera* m_avt_camera;			// AVT相机
-	int m_openCamera_res;				// 相机打开状态
 };

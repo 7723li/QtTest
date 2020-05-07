@@ -168,6 +168,14 @@ m_vimba_system(VimbaSystem::GetInstance())
 
 	SP_SET(m_FrameObserver, new FrameObserver(m_using_camera));
 	connect(SP_DYN_CAST(m_FrameObserver, FrameObserver).get(), &FrameObserver::obsr_get_new_frame, this, &AVTCamera::slot_obsr_get_new_frame);
+
+	m_is_connected = false;
+	m_fps = 0;
+	m_frame_obsr_cnt = 0;
+	m_save_frame_obsr_cnt = 0;
+
+	m_cnt_fps_timer = new QTimer;
+	connect(m_cnt_fps_timer, &QTimer::timeout, this, &AVTCamera::slot_cnt_fps);
 }
 
 AVTCamera::~AVTCamera()
@@ -179,8 +187,7 @@ int AVTCamera::openCamera()
 {
 	/*	AVT相机开启的通用流程 详见AlliedVision提供的Cpp案例源码 没啥好说的	*/
 
-	// 启动Vimba系统
-	if (VmbErrorSuccess != m_vimba_system.Startup())
+	if (VmbErrorSuccess != m_vimba_system.Startup())	// 启动Vimba系统
 	{
 		return camerabase::NoCameras;
 	}
@@ -233,6 +240,7 @@ int AVTCamera::openCamera()
 
 	if (frame_width <= 0 || frame_height <= 0)		// 确保是正常的图像尺寸
 		return camerabase::OpenFailed;
+
 	m_frame_width = (int)frame_width;
 	m_frame_height = (int)frame_height;
 	m_frame_area = m_frame_width * m_frame_height;
@@ -240,8 +248,12 @@ int AVTCamera::openCamera()
 	m_frame_pixelformat = -1;
 	if (VmbErrorSuccess == SP_ACCESS(m_using_camera)->GetFeatureByName("PixelFormat", format_feature))
 	{
-		format_feature->GetValue(m_frame_pixelformat);	// VmbPixelFormatMono8 8bit rgb 单通道
+		format_feature->GetValue(m_frame_pixelformat);	// VmbPixelFormatMono8 8bit rgb 单通道 "VmbCommonTypes.h"
 	}
+
+	m_fps = 0;							// 重置fps
+	m_frame_obsr_cnt = 0;				// 重置回调函数调用次数
+	m_save_frame_obsr_cnt = 0;			// 重置保存的 上一秒的回调函数调用次数
 
 	// 给3个帧的空间作为相机的缓冲区大小 并开始连续采集 观察者开始工作
 	if (VmbErrorSuccess != m_using_camera->StartContinuousImageAcquisition(3, m_FrameObserver))
@@ -249,6 +261,10 @@ int AVTCamera::openCamera()
 		return OpenStatus::OpenFailed;
 	}
 
+	m_fps = 0;										// 重置fps
+	m_frame_obsr_cnt = 0;							// 重置回调函数计数
+	m_cnt_fps_timer->start(1000);					// 开始计算fps
+	m_is_connected = true;							// 设置为已连接
 	return OpenStatus::OpenSuccess;
 }
 
@@ -259,13 +275,13 @@ bool AVTCamera::get_one_frame(cv::Mat* frame)
 
 	m_mutex.lock();
 	uchar* data = m_framedata_queue.front();
-	m_framedata_queue.pop();
-	m_mutex.unlock();
+ 	m_framedata_queue.pop();
+ 	m_mutex.unlock();
 
 	if (nullptr == data)
 		return false;
 
-	// 安全性行为 确保目标数据与相机获取的帧大小一致
+	// 安全性行为 确保目标数据与相机获取的帧大小一致 最好可以确保不要运行下面这一段!!!
 	if (frame->cols != m_frame_width || frame->rows != m_frame_height)
 	{
 		if (!frame->empty())
@@ -281,16 +297,36 @@ bool AVTCamera::get_one_frame(cv::Mat* frame)
 
 int AVTCamera::closeCamera()
 {
-	decltype(m_framedata_queue) to_clear_cache;
-	m_framedata_queue.swap(to_clear_cache);			// 清除数据队列
+	if (VmbErrorSuccess != m_vimba_system.Shutdown())	// 关闭系统(原理上只需要这一步就可以)
+	{
+		return camerabase::CloseFailed;
+	}
 
-	m_vimba_system.Shutdown();
-	if (!SP_ISNULL(m_using_camera))
+	if (m_cnt_fps_timer->isActive())					// 停止计算fps
+	{
+		m_cnt_fps_timer->stop();
+	}
+
+	if (!SP_ISNULL(m_using_camera))						// 停止采集 并清空缓冲区
 	{
 		m_using_camera->StopContinuousImageAcquisition();
-		if (VmbErrorSuccess != m_using_camera->Close())
-			return camerabase::CloseFailed;
+		m_using_camera->FlushQueue();
+		m_using_camera->RevokeAllFrames();		
 	}
+
+	if (!m_framedata_queue.empty())						// 清除数据队列
+	{
+		std::queue<uchar*> to_clear_cache;
+		m_framedata_queue.swap(to_clear_cache);
+	}
+
+	if (!SP_ISNULL(m_using_camera) &&
+		VmbErrorSuccess != m_using_camera->Close())		// 关闭摄像头
+	{
+		return camerabase::CloseFailed;
+	}
+
+	m_is_connected = false;
 
 	return camerabase::CloseSuccess;
 }
@@ -309,15 +345,35 @@ void AVTCamera::slot_obsr_camera_list_changed(int reason)
 
 void AVTCamera::slot_obsr_get_new_frame(FramePtr frame)
 {
-	if (SP_ISNULL(frame))
+	if (SP_ISNULL(frame))						// 安全措施 避免错误数据
 		return;
+
+	++m_frame_obsr_cnt;							// 增加回调函数调用计数
+	if (m_frame_obsr_cnt == INT_MAX)			// 防止数值溢出
+	{
+		m_frame_obsr_cnt = 1;
+		m_save_frame_obsr_cnt = 0;
+	}
 
 	VmbUchar_t* new_frame_buffer = nullptr;
 	frame->GetImage(new_frame_buffer);			// 解析成通用格式
 
 	m_mutex.lock();
-	m_framedata_queue.push(new_frame_buffer);	// 存储
+	m_framedata_queue.push(new_frame_buffer);	// 存储至队列等待取出
 	m_mutex.unlock();
 
 	m_using_camera->QueueFrame(frame);			// 清理AVT相机的缓存空间 否则会进入呆滞状态
+}
+
+void AVTCamera::slot_cnt_fps()
+{
+	// frame per second = 最新一秒内新增回调函数调用次数 = 最新一秒内调用计数总和 - 上一秒保留计数总和
+	int cnt = m_frame_obsr_cnt;
+	if (cnt != m_save_frame_obsr_cnt)
+	{
+		m_fps = cnt - m_save_frame_obsr_cnt;
+		m_save_frame_obsr_cnt = cnt;
+	}
+
+	qDebug() << m_fps;
 }
