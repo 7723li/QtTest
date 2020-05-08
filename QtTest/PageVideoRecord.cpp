@@ -91,29 +91,42 @@ void PageVideoRecord::prepare_record(const QString & examid)
 	/* @todo 从数据库中获取之前录制过的视频 */
 	// m_recored_video_list = TopVDB::getRecoredVideo(examid);
 
-	int w = 0, h = 0;
-	int closeCam_res = m_camerabase->closeCamera();		// 打开前先关闭 重置相机 以免之前有错误操作导致拉胯
-	int openCamera_res = m_camerabase->openCamera();	// 打开相机
-	switch (openCamera_res)
-	{
-	case camerabase::OpenStatus::OpenSuccess:
-		m_camerabase->get_frame_wh(w, h);				// 重置用来接收数据的帧
-		if (!m_mat.empty())
-			m_mat.release();
-		m_mat = cv::Mat(h, w, CV_8UC1);
-		m_get_frame_timer->start(1);					// 开启定时器 开始获取帧并显示 理论频率1s/1ms=1000Hz 开足马力
+	int closeCam_res = m_camerabase->closeCamera();			// 打开前先关闭 重置相机 以免之前有错误操作导致拉胯
+	int openCamera_res = m_camerabase->openCamera();		// 打开相机
 
-		// 提示成功并借机等待2秒 等待过程中相机运行稳定然后可以获取比较准确的fps数值 可用于写入视频
-		PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("相机打开成功"), 2000, true);
-		break;
-	case camerabase::OpenStatus::OpenFailed:
-		PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("相机打开失败，请尝试检查连接并重新插入"), 2000, true);
-		break;
-	case camerabase::OpenStatus::NoCameras:
-		PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("没有找到相机，请尝试检查连接并重新插入"), 2000, true);
-		break;
-	default:
-		break;
+	if (camerabase::OpenStatus::OpenSuccess == openCamera_res)
+	{
+		bool connected = m_camerabase->is_camera_connected();	// 相机连接状态
+		if (connected)
+		{
+			int w = 0, h = 0;
+			m_camerabase->get_frame_wh(w, h);			// 重置用来接收数据的帧
+			if (!m_mat.empty())
+				m_mat.release();
+			m_mat = cv::Mat(h, w, CV_8UC1);
+			m_get_frame_timer->start(1);				// 开启定时器 开始获取帧并显示 理论频率1s/1ms=1000Hz 开足马力
+
+			// 提示成功并借机等待2秒 等待过程中相机运行稳定然后可以获取比较准确的fps数值 可用于写入视频
+			PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(
+				PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("相机打开成功"), 2000, true);
+		}
+		else
+		{
+			PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(
+				PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("相机打开成功"), 2000, true);
+		}
+	}
+	else if (camerabase::OpenStatus::OpenFailed == openCamera_res)
+	{
+		PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(
+			PromptBox_msgtype::Warning, PromptBox_btntype::None,
+			QStringLiteral("相机打开失败，请尝试检查连接并重新插入"), 2000, true);
+	}
+	else if (camerabase::OpenStatus::NoCameras == openCamera_res)
+	{
+		PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(
+			PromptBox_msgtype::Warning, PromptBox_btntype::None,
+			QStringLiteral("没有找到相机，请尝试检查连接并重新插入"), 2000, true);
 	}
 }
 
@@ -143,6 +156,8 @@ void PageVideoRecord::slot_get_one_frame()
 	// 写入帧
 	if (m_record_duration_timer->isActive())
 	{
+		int now_framerate = m_camerabase->get_framerate();
+
 		if (m_VideoWriter.isOpened())
 		{
 			m_VideoWriter.write(m_mat);

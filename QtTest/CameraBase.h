@@ -10,7 +10,7 @@
 
 /*
 @brief
-相机封装父类 V100Pro通用相机接口 包含通用接口与常用参数
+相机封装基类 V100Pro通用相机接口 包含通用接口与常用参数
 */
 class camerabase : public QObject
 {
@@ -50,6 +50,8 @@ public:
 	/*
 	@brief
 	相机开启通用接口
+	@note
+	纯虚函数 必须手动复写
 	@return
 	OpenStatus
 	*/
@@ -60,11 +62,14 @@ public:
 	@param[1] frame 帧的内存需要由调用者自行申请与释放 这里只做数据复制 cv::Mat*
 	@note
 	V100Pro默认使用opencv cpp风格的帧格式Mat作为默认的帧格式
+	纯虚函数 必须手动复写
 	*/
 	virtual bool get_one_frame(cv::Mat* frame) = 0;
 	/*
 	@brief
 	相机关闭通用接口
+	@note
+	纯虚函数 必须手动复写
 	@return
 	CloseStatus
 	*/
@@ -101,7 +106,7 @@ public:
 	@brief
 	获取当前fps
 	*/
-	virtual int get_fps() { return m_fps; }
+	virtual int get_framerate() { return m_framerate; }
 
 protected:
 	int m_frame_width;		// 图像宽度
@@ -109,7 +114,7 @@ protected:
 	int m_frame_area;		// 图像面积
 
 	bool m_is_connected;	// 连接状态
-	int m_fps;				// fps
+	int m_framerate;		// fps
 
 	std::queue<uchar*> m_framedata_queue;	// 帧数据队列
 

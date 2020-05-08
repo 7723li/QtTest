@@ -20,12 +20,15 @@ void FrameObserver::FrameReceived(const FramePtr newframe)
 	bool is_inqueue = true;
 	VmbFrameStatusType eReceiveStatus;
 
+	if (SP_ISNULL(newframe))
+		return;
+
 	if (VmbErrorSuccess == newframe->GetReceiveStatus(eReceiveStatus))
 	{
-		if (SP_ISNULL(newframe))
-			return;
-
-		emit obsr_get_new_frame(newframe);
+		if (VmbFrameStatusComplete == eReceiveStatus)
+		{
+			emit obsr_get_new_frame(newframe);
+		}
 		is_inqueue = false;
 	}
 
@@ -35,7 +38,7 @@ void FrameObserver::FrameReceived(const FramePtr newframe)
 	}
 }
 
-// GetFeatureByName函数 所有可用feature(属性)
+// 所有可用feature(属性) from GetFeatures
 /*
 AcquisitionFrameCount
 AcquisitionFrameRate
@@ -163,19 +166,24 @@ WidthMax
 AVTCamera::AVTCamera() :
 m_vimba_system(VimbaSystem::GetInstance())
 {
-	SP_SET(m_CameraObserver, new CameraObserver);
-	connect(SP_DYN_CAST(m_CameraObserver, CameraObserver).get(), &CameraObserver::obsr_cameralist_changed, this, &AVTCamera::slot_obsr_camera_list_changed);
-
-	SP_SET(m_FrameObserver, new FrameObserver(m_using_camera));
-	connect(SP_DYN_CAST(m_FrameObserver, FrameObserver).get(), &FrameObserver::obsr_get_new_frame, this, &AVTCamera::slot_obsr_get_new_frame);
-
+	m_frame_width = 0;
+	m_frame_height = 0;
+	m_frame_area = 0;
 	m_is_connected = false;
-	m_fps = 0;
+	m_framerate = 0;
 	m_frame_obsr_cnt = 0;
 	m_save_frame_obsr_cnt = 0;
 
-	m_cnt_fps_timer = new QTimer;
-	connect(m_cnt_fps_timer, &QTimer::timeout, this, &AVTCamera::slot_cnt_fps);
+	SP_SET(m_CameraObserver, new CameraObserver);
+	connect(SP_DYN_CAST(m_CameraObserver, CameraObserver).get(), &CameraObserver::obsr_cameralist_changed, 
+		this, &AVTCamera::slot_obsr_camera_list_changed);
+
+	SP_SET(m_FrameObserver, new FrameObserver(m_using_camera));
+	connect(SP_DYN_CAST(m_FrameObserver, FrameObserver).get(), &FrameObserver::obsr_get_new_frame, 
+		this, &AVTCamera::slot_obsr_get_new_frame);
+
+	m_cnt_framerate_timer = new QTimer;
+	connect(m_cnt_framerate_timer, &QTimer::timeout, this, &AVTCamera::slot_cnt_framerate);
 }
 
 AVTCamera::~AVTCamera()
@@ -185,9 +193,9 @@ AVTCamera::~AVTCamera()
 
 int AVTCamera::openCamera()
 {
-	/*	AVT相机开启的通用流程 详见AlliedVision提供的Cpp案例源码 没啥好说的	*/
+	/*	AVT的相机开启流程 从源码缝合而成 所以有些东西也不知道什么意思(!-_-) 有兴趣详见AlliedVision提供的手册与Cpp案例源码 */
 
-	if (VmbErrorSuccess != m_vimba_system.Startup())	// 启动Vimba系统
+	if (VmbErrorSuccess != m_vimba_system.Startup())		// 启动Vimba系统
 	{
 		return camerabase::NoCameras;
 	}
@@ -197,73 +205,128 @@ int AVTCamera::openCamera()
 		return camerabase::NoCameras;
 	}	
 
-	m_vimba_system.GetCameras(m_avaliable_camera_list);	// 获取相机列表
+	m_vimba_system.GetCameras(m_avaliable_camera_list);		// 获取相机列表
 	if (m_avaliable_camera_list.empty())
 	{
 		return camerabase::NoCameras;
 	}
 
-	m_using_camera = m_avaliable_camera_list.front();	// 默认使用第一个
+	m_using_camera = m_avaliable_camera_list.front();		// 默认使用第一个
 	if (VmbErrorSuccess != m_using_camera->Open(VmbAccessModeFull) || SP_ISNULL(m_using_camera))
 	{
 		return camerabase::OpenFailed;
 	}
 
-	// lzx 20200506 command_feature(用于执行GVSPAdjustPacketSize命令)往下的这段代码 从案例直接抄过来的 在这个相机上面没有这个属性
-	FeaturePtr command_feature;
-	// configures GigE cameras to use the largest possible packets. <Vimba C++ manual 4.12.1>
-	if (VmbErrorSuccess == SP_ACCESS(m_using_camera)->GetFeatureByName("GVSPAdjustPacketSize", command_feature))
+	FeaturePtr property_feature;							// 图像属性
+	VmbInt64_t frame_width = 0;
+	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("Width", property_feature))
 	{
-		if (VmbErrorSuccess == SP_ACCESS(command_feature)->RunCommand())
+		property_feature->GetValue(frame_width);			// 图像宽度
+	}
+	m_frame_width = frame_width;
+
+	VmbInt64_t frame_height = 0;
+	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("Height", property_feature))
+	{
+		property_feature->GetValue(frame_height);			// 图像高度
+	}
+	m_frame_height = frame_height;
+
+	VmbInt64_t fuck_payload = 0;
+	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("PayloadSize", property_feature))
+	{
+		property_feature->GetValue(fuck_payload);			// 图像字节数(面积)
+	}
+	m_frame_area = fuck_payload;
+
+	if (m_frame_width <= 0 || m_frame_height <= 0 || m_frame_area <= 0)
+	{
+		return camerabase::OpenFailed;						// 确保是正常的图像尺寸
+	}
+
+	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("PixelFormat", property_feature))
+	{
+		property_feature->GetValue(m_frame_pixelformat);	// 图像格式 VmbPixelFormatMono8 8bit rgb 单通道 "VmbCommonTypes.h"
+	}
+
+	/* @todo 待补充 从配置文件读取 设置相机 */
+	// COMMONFUNC::READCAMERACONFIG(CAMERACONFIG)
+
+	/* 可配置项 */
+	/* 采集模式			AcquisitionMode */
+	/* 帧率				AcquisitionFrameRateEnable & AcquisitionFrameRate */
+	/* 白平衡			BlackLevel */
+	/* 曝光时间			ExposureAuto | ( ExposureAutoMax & ExposureAutoMin & ExposureTime) */
+	/* 增益				GainAuto | （Gain & GainAutoMax & GainAutoMin */
+	/* 亮度				IntensityControllerRate */
+
+	std::string AcquisitionMode;
+	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionMode", property_feature))
+	{
+		property_feature->GetValue(AcquisitionMode);
+		if (0 != AcquisitionMode.compare("Continuous") &&
+			VmbErrorSuccess != property_feature->SetValue("Continuous"))	// 设置为连续采集模式
 		{
-			bool is_command_done = false;
-			do
-			{
-				if (VmbErrorSuccess != SP_ACCESS(command_feature)->IsCommandDone(is_command_done))
-				{
-					break;
-				}
-			} while (is_command_done == false);
+			return camerabase::OpenFailed;
 		}
 	}
 
-	FeaturePtr format_feature;						// 图像属性
-	VmbInt64_t frame_width = 0, frame_height = 0;
-	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("Width", format_feature))
+	VmbInt64_t AcquisitionFrameRate = 0, AcquisitionFrameRateEnable = 0;
+	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionFrameRateEnable", property_feature))
 	{
-		format_feature->GetValue(frame_width);		// 图像宽度
+		property_feature->GetValue(AcquisitionFrameRateEnable);
+		if (VmbErrorSuccess != property_feature->SetValue(true))			// 设置采集帧率为可设置模式
+			return camerabase::OpenFailed;
 	}
-	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("Height", format_feature))
+	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionFrameRate", property_feature))
 	{
-		format_feature->GetValue(frame_height);		// 图像高度
+		property_feature->GetValue(AcquisitionFrameRate);
+		if (VmbErrorSuccess != property_feature->SetValue((double)60.0))	// 设置采集帧率 注意必须为浮点数
+			return camerabase::OpenFailed;
 	}
 
-	if (frame_width <= 0 || frame_height <= 0)		// 确保是正常的图像尺寸
+	/* 给3个帧的空间作为相机的缓冲区大小 并开始连续采集 观察者开始工作 (已弃用这种启动方式) */
+	//if (VmbErrorSuccess != m_using_camera->StartContinuousImageAcquisition(3, m_FrameObserver))
+	//{
+	//	return OpenStatus::OpenFailed;
+	//}
+
+	/* lzx 20200508 根据VimbaViewer源码提供的标准(大嘘...)启动方式 */
+	static const int buffer_size = 8;							// 8
+	std::vector<FramePtr> fuckAVt_frame(buffer_size);
+	fuckAVt_frame.resize(buffer_size);
+	for (int i = 0; i < buffer_size; ++i)
+	{
+		fuckAVt_frame[i] = FramePtr(new Frame(fuck_payload));	// 申请缓冲空间
+	}
+	for (int i = 0; i < buffer_size; ++i)
+	{
+		if (VmbErrorSuccess != fuckAVt_frame[i]->RegisterObserver(m_FrameObserver)	// 注册观察者
+			|| VmbErrorSuccess != m_using_camera->AnnounceFrame(fuckAVt_frame[i])	// 声明相机之后需要用到的缓存空间
+			|| VmbErrorSuccess != m_using_camera->QueueFrame(fuckAVt_frame[i]))
+		{
+			return camerabase::OpenFailed;
+		}
+	}
+
+	if (VmbErrorSuccess != m_using_camera->StartCapture())		// 相机开始工作
+	{
 		return camerabase::OpenFailed;
-
-	m_frame_width = (int)frame_width;
-	m_frame_height = (int)frame_height;
-	m_frame_area = m_frame_width * m_frame_height;
-
-	m_frame_pixelformat = -1;
-	if (VmbErrorSuccess == SP_ACCESS(m_using_camera)->GetFeatureByName("PixelFormat", format_feature))
-	{
-		format_feature->GetValue(m_frame_pixelformat);	// VmbPixelFormatMono8 8bit rgb 单通道 "VmbCommonTypes.h"
 	}
 
-	m_fps = 0;							// 重置fps
-	m_frame_obsr_cnt = 0;				// 重置回调函数调用次数
-	m_save_frame_obsr_cnt = 0;			// 重置保存的 上一秒的回调函数调用次数
-
-	// 给3个帧的空间作为相机的缓冲区大小 并开始连续采集 观察者开始工作
-	if (VmbErrorSuccess != m_using_camera->StartContinuousImageAcquisition(3, m_FrameObserver))
+	FeaturePtr command_feature;									// 用来执行命令的属性
+	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionStart", command_feature))	// 开始连续采集
 	{
-		return OpenStatus::OpenFailed;
+		if (VmbErrorSuccess != command_feature->RunCommand())
+		{
+			return camerabase::OpenFailed;
+		}
 	}
 
-	m_fps = 0;										// 重置fps
+	m_framerate = 0;								// 重置fps
 	m_frame_obsr_cnt = 0;							// 重置回调函数计数
-	m_cnt_fps_timer->start(1000);					// 开始计算fps
+	m_save_frame_obsr_cnt = 0;						// 重置保存的回调计数
+	m_cnt_framerate_timer->start(1000);				// 开始计算fps
 	m_is_connected = true;							// 设置为已连接
 	return OpenStatus::OpenSuccess;
 }
@@ -291,7 +354,7 @@ bool AVTCamera::get_one_frame(cv::Mat* frame)
 		to_copy.copyTo(*frame);
 	}
 	
-	memcpy(frame->data, data, m_frame_area);	// frame的内存由调用者自行管理
+	memcpy(frame->data, data, m_frame_area);			// frame的内存由调用者自行管理
 	return true;
 }
 
@@ -302,14 +365,22 @@ int AVTCamera::closeCamera()
 		return camerabase::CloseFailed;
 	}
 
-	if (m_cnt_fps_timer->isActive())					// 停止计算fps
+	if (m_cnt_framerate_timer->isActive())				// 停止计算fps
 	{
-		m_cnt_fps_timer->stop();
+		m_cnt_framerate_timer->stop();
 	}
 
 	if (!SP_ISNULL(m_using_camera))						// 停止采集 并清空缓冲区
 	{
-		m_using_camera->StopContinuousImageAcquisition();
+		FeaturePtr command_feature;
+		if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionStop", command_feature))	// 停止采集
+		{
+			if (VmbErrorSuccess != command_feature->RunCommand())
+			{
+				return camerabase::OpenFailed;
+			}
+		}
+
 		m_using_camera->FlushQueue();
 		m_using_camera->RevokeAllFrames();		
 	}
@@ -365,15 +436,12 @@ void AVTCamera::slot_obsr_get_new_frame(FramePtr frame)
 	m_using_camera->QueueFrame(frame);			// 清理AVT相机的缓存空间 否则会进入呆滞状态
 }
 
-void AVTCamera::slot_cnt_fps()
+void AVTCamera::slot_cnt_framerate()
 {
 	// frame per second = 最新一秒内新增回调函数调用次数 = 最新一秒内调用计数总和 - 上一秒保留计数总和
 	int cnt = m_frame_obsr_cnt;
-	if (cnt != m_save_frame_obsr_cnt)
-	{
-		m_fps = cnt - m_save_frame_obsr_cnt;
-		m_save_frame_obsr_cnt = cnt;
-	}
+	m_framerate = cnt - m_save_frame_obsr_cnt;
+	m_save_frame_obsr_cnt = cnt;
 
-	qDebug() << m_fps;
+	qDebug() << m_framerate;
 }

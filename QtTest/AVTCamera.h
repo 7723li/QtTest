@@ -26,13 +26,18 @@ class CameraObserver : public QObject, public ICameraListObserver
 
 public:
 	/*
-	brief
+	@brief
 	相机拔插回调函数 继承自ICameraListObserver
 	*/
 	virtual void CameraListChanged(CameraPtr pCamera, UpdateTriggerType reason) override;
 
 signals:
-	void obsr_cameralist_changed(int reasion);	// 用于通知相机拔插事件发生的信号
+	/*
+	@brief
+	用于通知相机拔插事件发生的信号
+	@param[1] reason 拔或插 UpdateTriggerType
+	*/
+	void obsr_cameralist_changed(int reason);
 };
 
 /*
@@ -47,7 +52,7 @@ public:
 	FrameObserver(CameraPtr camera);
 
 	/*
-	brief
+	@brief
 	帧回调函数 继承自IFrameObserver
 	*/
 	virtual void FrameReceived(const FramePtr newframe) override;
@@ -85,9 +90,11 @@ private slots:
 	@param[1] frame 回调函数获取的帧 FramePtr
 	*/
 	void slot_obsr_get_new_frame(FramePtr frame);
-
-
-	void slot_cnt_fps(); 
+	/*
+	@brief
+	由定时器一秒一计算 算出上一秒的帧率
+	*/
+	void slot_cnt_framerate(); 
 
 private:
 	VimbaSystem & m_vimba_system;				// Vimba系统
@@ -105,5 +112,5 @@ private:
 	int m_frame_obsr_cnt;						// 回调函数调用次数
 	int m_save_frame_obsr_cnt;					// 保存的 上一秒的回调函数调用次数
 	
-	QTimer* m_cnt_fps_timer;					// 用于计算fps的定时器 fps = 当前回调函数调用次数 - 上一秒回调函数调用次数
+	QTimer* m_cnt_framerate_timer;				// 用于计算fps的定时器 fps = 当前回调函数调用次数 - 上一秒回调函数调用次数
 };
