@@ -271,7 +271,8 @@ int AVTCamera::openCamera()
 		}
 	}
 
-	double AcquisitionFrameRate = 0, AcquisitionFrameRateEnable = 0;
+	double AcquisitionFrameRate = 0.0;
+	VmbInt64_t AcquisitionFrameRateEnable = 0;
 	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionFrameRateEnable", property_feature))
 	{
 		property_feature->GetValue(AcquisitionFrameRateEnable);
@@ -280,9 +281,12 @@ int AVTCamera::openCamera()
 	}
 	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionFrameRate", property_feature))
 	{
-		property_feature->SetValue((double)60.0);	// 设置采集帧率 注意必须为浮点数
 		property_feature->GetValue(AcquisitionFrameRate);
-//			return camerabase::OpenFailed;
+		if (AcquisitionFrameRate != (double)60.0 &&
+			VmbErrorSuccess != property_feature->SetValue((double)60.0))	// 设置采集帧率 注意必须为浮点数
+		{
+			return camerabase::OpenFailed;
+		}
 	}
 
 	/* 给3个帧的空间作为相机的缓冲区大小 并开始连续采集 观察者开始工作 (已弃用这种启动方式) */

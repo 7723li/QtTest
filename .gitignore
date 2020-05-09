@@ -7,5 +7,6 @@
 *.avi
 
 /x64
-/QtTest/GeneratedFiles
 /QtTest/x64
+/QtTest/GeneratedFiles
+/QtTest/*.dll
