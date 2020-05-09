@@ -10,6 +10,7 @@ void VideoFrameCollector_ffmpeg::set_videoname(const QString& videoname)
 {
 	QFileInfo to_abs_filepath(videoname);		// 安全起见 无论传进来的是什么都先设为绝对路径
 	m_videoname = to_abs_filepath.absoluteFilePath();
+	qDebug() << m_videoname;
 }
 
 void VideoFrameCollector_ffmpeg::run()

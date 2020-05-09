@@ -78,6 +78,9 @@ public:
 	virtual bool get_one_frame(cv::Mat*);
 	virtual int closeCamera();
 
+	virtual double get_framerate() override;
+	virtual bool is_camera_connected() override;
+
 private slots:
 	/*
 	@brief
@@ -91,11 +94,6 @@ private slots:
 	@param[1] frame 回调函数获取的帧 FramePtr
 	*/
 	void slot_obsr_get_new_frame(FramePtr frame);
-	/*
-	@brief
-	由定时器一秒一计算 算出上一秒的帧率
-	*/
-	void slot_cnt_framerate(); 
 
 private:
 	VimbaSystem & m_vimba_system;				// Vimba系统
@@ -109,9 +107,4 @@ private:
 	VmbInt64_t m_frame_pixelformat;				// 图像格式
 
 	std::mutex m_mutex;							// 观察者回调函数 与 录制界面均需用到数据队列 需要避免出现调用冲突
-
-	int m_frame_obsr_cnt;						// 回调函数调用次数
-	int m_save_frame_obsr_cnt;					// 保存的 上一秒的回调函数调用次数
-	
-	QTimer* m_cnt_framerate_timer;				// 用于计算fps的定时器 fps = 当前回调函数调用次数 - 上一秒回调函数调用次数
 };

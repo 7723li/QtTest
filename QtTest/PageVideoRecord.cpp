@@ -96,15 +96,14 @@ void PageVideoRecord::prepare_record(const QString & examid)
 
 	if (camerabase::OpenStatus::OpenSuccess == openCamera_res)
 	{
-		bool connected = m_camerabase->is_camera_connected();	// 相机连接状态
-		if (connected)
+		if (m_camerabase->is_camera_connected())			// 相机连接状态
 		{
 			int w = 0, h = 0;
-			m_camerabase->get_frame_wh(w, h);			// 重置用来接收数据的帧
+			m_camerabase->get_frame_wh(w, h);				// 重置用来接收数据的帧
 			if (!m_mat.empty())
 				m_mat.release();
 			m_mat = cv::Mat(h, w, CV_8UC1);
-			m_get_frame_timer->start(1);				// 开启定时器 开始获取帧并显示 理论频率1s/1ms=1000Hz 开足马力
+			m_get_frame_timer->start(1);					// 开启定时器 开始获取帧并显示 理论频率1s/1ms=1000Hz 开足马力
 
 			// 提示成功并借机等待2秒 等待过程中相机运行稳定然后可以获取比较准确的fps数值 可用于写入视频
 			PromptBoxInst(m_PageVideoRecord_kit->video_displayer)->msgbox_go(
@@ -179,7 +178,8 @@ void PageVideoRecord::slot_begin_or_finish_record()
 		m_record_duration_period = 0;
 		m_PageVideoRecord_kit->video_time_display->setText("00:00:00");
 
-		if(m_VideoWriter.open(g_test_videoname.toStdString().c_str(), CV_FOURCC('M', 'J', 'P', 'G'), 120, cv::Size(m_mat.cols, m_mat.rows), false))
+		double fps = m_camerabase->get_framerate();
+		if (m_VideoWriter.open(g_test_videoname.toStdString().c_str(), CV_FOURCC('M', 'J', 'P', 'G'), fps, cv::Size(m_mat.cols, m_mat.rows), false))
 			m_record_duration_timer->start(1000);
 	}
 	else										// 停止录像
@@ -254,11 +254,7 @@ void PageVideoRecord::slot_exit()
 		return;
 	}
 
-	do
-	{
-		m_get_frame_timer->stop();
-	}
-	while (m_get_frame_timer->isActive());
+	m_get_frame_timer->stop();
 	int close_status = m_camerabase->closeCamera();
 
 	// 发射一个本页面关闭的信号 接不接收无所谓

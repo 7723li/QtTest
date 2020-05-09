@@ -106,7 +106,7 @@ public:
 	@brief
 	获取当前fps
 	*/
-	virtual int get_framerate() { return m_framerate; }
+	virtual double get_framerate() { return m_framerate; }
 
 protected:
 	int m_frame_width;		// 图像宽度
@@ -114,7 +114,7 @@ protected:
 	int m_frame_area;		// 图像面积
 
 	bool m_is_connected;	// 连接状态
-	int m_framerate;		// fps
+	double m_framerate;		// fps
 
 	std::queue<uchar*> m_framedata_queue;	// 帧数据队列
 

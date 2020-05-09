@@ -170,9 +170,7 @@ m_vimba_system(VimbaSystem::GetInstance())
 	m_frame_height = 0;
 	m_frame_area = 0;
 	m_is_connected = false;
-	m_framerate = 0;
-	m_frame_obsr_cnt = 0;
-	m_save_frame_obsr_cnt = 0;
+	m_framerate = 0.0;
 
 	SP_SET(m_CameraObserver, new CameraObserver);
 	connect(SP_DYN_CAST(m_CameraObserver, CameraObserver).get(), &CameraObserver::obsr_cameralist_changed, 
@@ -181,9 +179,6 @@ m_vimba_system(VimbaSystem::GetInstance())
 	SP_SET(m_FrameObserver, new FrameObserver(m_using_camera));
 	connect(SP_DYN_CAST(m_FrameObserver, FrameObserver).get(), &FrameObserver::obsr_get_new_frame, 
 		this, &AVTCamera::slot_obsr_get_new_frame);
-
-	m_cnt_framerate_timer = new QTimer;
-	connect(m_cnt_framerate_timer, &QTimer::timeout, this, &AVTCamera::slot_cnt_framerate);
 }
 
 AVTCamera::~AVTCamera()
@@ -272,7 +267,6 @@ int AVTCamera::openCamera()
 	}
 
 	bool AcquisitionFrameRateEnable = false;
-	double AcquisitionFrameRate = 0.0, target_framerate= 60.0;
 	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionFrameRateEnable", property_feature))
 	{
 		property_feature->GetValue(AcquisitionFrameRateEnable);
@@ -282,10 +276,11 @@ int AVTCamera::openCamera()
 			return camerabase::OpenFailed;
 		}
 	}
+	double target_framerate = 60.0;
 	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionFrameRate", property_feature))
 	{
-		property_feature->GetValue(AcquisitionFrameRate);
-		if (std::floor(AcquisitionFrameRate) != target_framerate &&
+		property_feature->GetValue(m_framerate);
+		if (std::floor(m_framerate) != target_framerate &&
 			VmbErrorSuccess != property_feature->SetValue(target_framerate))// 设置采集帧率 注意必须为浮点数
 		{
 			return camerabase::OpenFailed;
@@ -330,11 +325,6 @@ int AVTCamera::openCamera()
 		}
 	}
 
-	m_framerate = 0;								// 重置fps
-	m_frame_obsr_cnt = 0;							// 重置回调函数计数
-	m_save_frame_obsr_cnt = 0;						// 重置保存的回调计数
-	m_cnt_framerate_timer->start(1000);				// 开始计算fps
-	m_is_connected = true;							// 设置为已连接
 	return OpenStatus::OpenSuccess;
 }
 
@@ -352,13 +342,19 @@ bool AVTCamera::get_one_frame(cv::Mat* frame)
 		return false;
 
 	// 安全性行为 确保目标数据与相机获取的帧大小一致 最好可以确保不要运行下面这一段!!!
-	if (frame->cols != m_frame_width || frame->rows != m_frame_height)
-	{
-		if (!frame->empty())
-			frame->release();
+	; {
+		if (nullptr == frame)
+		{
+			frame = new cv::Mat(m_frame_height, m_frame_width, CV_8UC1);
+		}
+		if (frame->cols != m_frame_width || frame->rows != m_frame_height)
+		{
+			if (!frame->empty())
+				frame->release();
 
-		cv::Mat to_copy(m_frame_height, m_frame_width, CV_8UC1);
-		to_copy.copyTo(*frame);
+			cv::Mat to_copy(m_frame_height, m_frame_width, CV_8UC1);
+			to_copy.copyTo(*frame);
+		}
 	}
 	
 	memcpy(frame->data, data, m_frame_area);			// frame的内存由调用者自行管理
@@ -370,11 +366,6 @@ int AVTCamera::closeCamera()
 	if (VmbErrorSuccess != m_vimba_system.Shutdown())	// 关闭系统(原理上只需要这一步就可以)
 	{
 		return camerabase::CloseFailed;
-	}
-
-	if (m_cnt_framerate_timer->isActive())				// 停止计算fps
-	{
-		m_cnt_framerate_timer->stop();
 	}
 
 	if (!SP_ISNULL(m_using_camera))						// 停止采集 并清空缓冲区
@@ -409,6 +400,28 @@ int AVTCamera::closeCamera()
 	return camerabase::CloseSuccess;
 }
 
+double AVTCamera::get_framerate()
+{
+	FeaturePtr property_feature;
+	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionFrameRate", property_feature))
+	{
+		property_feature->GetValue(m_framerate);
+	}
+
+	return m_framerate;
+}
+
+bool AVTCamera::is_camera_connected()
+{
+	FeaturePtr property_feature;
+	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionStatus", property_feature))
+	{
+		property_feature->GetValue(m_is_connected);
+	}
+
+	return m_is_connected;
+}
+
 void AVTCamera::slot_obsr_camera_list_changed(int reason)
 {
 	if (UpdateTriggerPluggedIn == reason)
@@ -426,13 +439,6 @@ void AVTCamera::slot_obsr_get_new_frame(FramePtr frame)
 	if (SP_ISNULL(frame))						// 安全措施 避免错误数据
 		return;
 
-	++m_frame_obsr_cnt;							// 增加回调函数调用计数
-	if (m_frame_obsr_cnt == INT_MAX)			// 防止数值溢出
-	{
-		m_frame_obsr_cnt = 1;
-		m_save_frame_obsr_cnt = 0;
-	}
-
 	VmbUchar_t* new_frame_buffer = nullptr;
 	frame->GetImage(new_frame_buffer);			// 解析成通用格式
 
@@ -441,14 +447,4 @@ void AVTCamera::slot_obsr_get_new_frame(FramePtr frame)
 	m_mutex.unlock();
 
 	m_using_camera->QueueFrame(frame);			// 清理AVT相机的缓存空间 否则会进入呆滞状态
-}
-
-void AVTCamera::slot_cnt_framerate()
-{
-	// frame per second = 最新一秒内新增回调函数调用次数 = 最新一秒内调用计数总和 - 上一秒保留计数总和
-	int cnt = m_frame_obsr_cnt;
-	m_framerate = cnt - m_save_frame_obsr_cnt;
-	m_save_frame_obsr_cnt = cnt;
-
-	qDebug() << m_framerate;
 }
