@@ -232,12 +232,12 @@ int AVTCamera::openCamera()
 	}
 	m_frame_height = frame_height;
 
-	VmbInt64_t payload = 0;
+	VmbInt64_t fuck_payload = 0;
 	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("PayloadSize", property_feature))
 	{
-		property_feature->GetValue(payload);				// 图像字节数(面积)
+		property_feature->GetValue(fuck_payload);			// 图像字节数(面积)
 	}
-	m_frame_area = payload;
+	m_frame_area = fuck_payload;
 
 	if (m_frame_width <= 0 || m_frame_height <= 0 || m_frame_area <= 0)
 	{
@@ -271,25 +271,31 @@ int AVTCamera::openCamera()
 		}
 	}
 
-	bool AcquisitionFrameRateEnable = false;
-	double AcquisitionFrameRate = 0.0, target_framerate= 60.0;
+<<<<<<< HEAD
+	double AcquisitionFrameRate = 0, AcquisitionFrameRateEnable = 0;
+=======
+	double AcquisitionFrameRate = 0.0;
+	VmbInt64_t AcquisitionFrameRateEnable = 0;
+>>>>>>> temp
 	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionFrameRateEnable", property_feature))
 	{
 		property_feature->GetValue(AcquisitionFrameRateEnable);
-		if (!AcquisitionFrameRateEnable &&
-			VmbErrorSuccess != property_feature->SetValue(true))			// 设置采集帧率为可设置模式
-		{
+		if (VmbErrorSuccess != property_feature->SetValue(true))			// 设置采集帧率为可设置模式
 			return camerabase::OpenFailed;
-		}
 	}
 	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionFrameRate", property_feature))
 	{
+		property_feature->SetValue((double)60.0);	// 设置采集帧率 注意必须为浮点数
 		property_feature->GetValue(AcquisitionFrameRate);
-		if (std::floor(AcquisitionFrameRate) != target_framerate &&
-			VmbErrorSuccess != property_feature->SetValue(target_framerate))// 设置采集帧率 注意必须为浮点数
+<<<<<<< HEAD
+//			return camerabase::OpenFailed;
+=======
+		if (AcquisitionFrameRate != (double)60.0 &&
+			VmbErrorSuccess != property_feature->SetValue((double)60.0))	// 设置采集帧率 注意必须为浮点数
 		{
 			return camerabase::OpenFailed;
 		}
+>>>>>>> temp
 	}
 
 	/* 给3个帧的空间作为相机的缓冲区大小 并开始连续采集 观察者开始工作 (已弃用这种启动方式) */
@@ -300,17 +306,17 @@ int AVTCamera::openCamera()
 
 	/* lzx 20200508 根据VimbaViewer源码提供的标准(大嘘...)启动方式 */
 	static const int buffer_size = 8;							// 8
-	std::vector<FramePtr> AVT_framebuffer(buffer_size);
-	AVT_framebuffer.resize(buffer_size);
+	std::vector<FramePtr> fuckAVt_frame(buffer_size);
+	fuckAVt_frame.resize(buffer_size);
 	for (int i = 0; i < buffer_size; ++i)
 	{
-		AVT_framebuffer[i] = FramePtr(new Frame(payload));		// 申请缓冲空间
+		fuckAVt_frame[i] = FramePtr(new Frame(fuck_payload));	// 申请缓冲空间
 	}
 	for (int i = 0; i < buffer_size; ++i)
 	{
-		if (VmbErrorSuccess != AVT_framebuffer[i]->RegisterObserver(m_FrameObserver)	// 注册观察者
-			|| VmbErrorSuccess != m_using_camera->AnnounceFrame(AVT_framebuffer[i])	// 声明相机之后需要用到的缓存空间
-			|| VmbErrorSuccess != m_using_camera->QueueFrame(AVT_framebuffer[i]))
+		if (VmbErrorSuccess != fuckAVt_frame[i]->RegisterObserver(m_FrameObserver)	// 注册观察者
+			|| VmbErrorSuccess != m_using_camera->AnnounceFrame(fuckAVt_frame[i])	// 声明相机之后需要用到的缓存空间
+			|| VmbErrorSuccess != m_using_camera->QueueFrame(fuckAVt_frame[i]))
 		{
 			return camerabase::OpenFailed;
 		}

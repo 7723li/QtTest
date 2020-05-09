@@ -5,6 +5,7 @@
 #include <QTimer>
 
 #include <mutex>
+#include <math.h>
 
 #include "AVTCamera/include/VimbaCPP/Include/VimbaCPP.h"
 #include "AVTCamera/include/VimbaCPP/Include/VmbTransform.h"
