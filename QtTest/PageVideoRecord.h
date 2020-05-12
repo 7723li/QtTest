@@ -29,7 +29,7 @@
 #include "VideoListWidget.h"
 #include "AVTCamera.h"
 #include "VideoPlayer_ffmpeg.h"
-#include "VideoDisplayWidget.hpp"
+#include "FrameDisplayWidget.hpp"
 
 
 /*
@@ -43,7 +43,7 @@ public:
 	~PageVideoRecord_kit(){}
 
 public:
-	VideoDisplayWidget* video_displayer;// 视频显示器
+	FrameDisplayWidget* frame_displayer;// 帧显示器
 	QLabel* bed_num_label;				// 床号
 	QLabel* patient_name_label;			// 姓名
 	QLabel* video_time_display;			// 视频时长显示
@@ -53,7 +53,7 @@ public:
 	QWidget* video_list_background;		// 视频存放列表的纯白背景板
 	VideoListWidget* video_list;		// 视频存放列表
 
-	VideoPlayer_ffmpeg* videoplayer;
+	VideoPlayer_ffmpeg* videoplayer;	// 视频播放器
 }
 PageVideoRecord_kit;
 
@@ -69,23 +69,35 @@ public:
 	explicit PageVideoRecord(QWidget* parent);
 	~PageVideoRecord(){}
 
-public:
+public slots:
 	/*
 	@brief
 	外部切换界面入口
 	@param[1] examid 病例id QString
 	*/
-	void prepare_record(const QString & examid);
+	void init_PageVideoRecord(const QString & examid);
 
 private:
-	void clear_video_displayer();	// 清理图像显示区域
+	void clear_videodisplay();								// 清理图像显示区域
+
+	void show_camera_openstatus(int openstatus);
+
+	void begin_camera_and_capture();
+	void stop_camera_and_capture();
+
+	void begin_capture();
+	void stop_capture();
 
 private slots:
-	void slot_get_one_frame();											// 从相机处获取一帧
-	void slot_begin_or_finish_record();									// 开始(结束)录制视频
-	void slot_timeout_video_duration_timer();							// 相机录制计时
-	void slot_replay_recordedvideo(QListWidgetItem* choosen_video);		// 重播录制的视频
-	void slot_exit();													// 退出界面
+	void slot_get_one_frame();								// 从相机处获取一帧
+
+	void slot_begin_or_finish_record();						// 开始(结束)录制视频
+	void slot_timeout_video_duration_timer();				// 相机录制计时
+
+	void slot_replay_begin(QListWidgetItem* choosen_video);	// 重播录制的视频
+	void slot_replay_finished();							// 重播完毕
+
+	void slot_exit();										// 退出界面
 
 signals:
 	void PageVideoRecord_exit(const QString & examid);
@@ -97,13 +109,14 @@ private:
 
 	QString m_examid;					// 病例ID 由外部传入
 
-	QTimer* m_get_frame_timer;			// 用于从相机获取帧数据的定时器
+	QTimer* m_get_frame_timer;			// 取帧定时器
 	QTimer* m_record_duration_timer;	// 用于记录录像时长的定时器
 	int m_record_duration_period;		// 录像时长定时器溢出次数 = 录像时长秒数
 
-	cv::Mat m_mat;						// cv::Mat->QImage->QPixmap->QLabel显像
 	cv::VideoWriter m_VideoWriter;		// 将Mat写入到视频
 
 	camerabase* m_camerabase;			// 相机封装 通用相机接口
 	AVTCamera* m_avt_camera;			// AVT相机
+
+	bool m_show_frame;
 };

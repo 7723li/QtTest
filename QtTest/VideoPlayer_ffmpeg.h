@@ -17,6 +17,8 @@ extern "C"
 #include "externalFile/ffmpeg/include/libavutil/pixfmt.h"
 }
 
+#include "FrameDisplayWidget.hpp"
+
 /*
 @brief
 流数据处理器
@@ -37,7 +39,8 @@ protected:
 	void run();
 
 signals:
-	void collect_one_frame(const QPixmap& pixmap);
+	void collect_one_frame(uchar* frame_date, int w, int h);
+	void finish_collect_frame();
 
 private:
 	QString m_videoname;
@@ -47,12 +50,12 @@ private:
 @brief
 视频播放器组件
 */
-typedef struct VideoPlayer_ffmpeg_kit
+typedef struct VideoPlayer_ffmpeg_kit : public QWidget
 {
 public:
 	explicit VideoPlayer_ffmpeg_kit(QWidget* p = nullptr);
 
-	QLabel* video_display;
+	FrameDisplayWidget* frame_displayer;
 }
 VideoPlayer_ffmpeg_kit;
 
@@ -72,7 +75,11 @@ public:
 	void play(const QString & video_name);
 
 private slots:
-	void show_frame(const QPixmap& pixmap);
+	void show_frame(uchar* frame_date, int w, int h);
+	void slot_finish_collect_frame();
+
+signals:
+	void finish_play_video();
 
 private:
 	VideoFrameCollector_ffmpeg* m_collector;

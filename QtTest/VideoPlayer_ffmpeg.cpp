@@ -10,7 +10,6 @@ void VideoFrameCollector_ffmpeg::set_videoname(const QString& videoname)
 {
 	QFileInfo to_abs_filepath(videoname);		// 安全起见 无论传进来的是什么都先设为绝对路径
 	m_videoname = to_abs_filepath.absoluteFilePath();
-	qDebug() << m_videoname;
 }
 
 void VideoFrameCollector_ffmpeg::run()
@@ -21,7 +20,6 @@ void VideoFrameCollector_ffmpeg::run()
 	AVFormatContext* format_context = avformat_alloc_context();
 
 	// 判断视频在不在 打开一个格式内容 其实就是打开一个视频 并右键"属性"
-	qDebug() << m_videoname;
 	const char* file_name = m_videoname.toStdString().c_str();
 	if (!QFile::exists(m_videoname) || avformat_open_input(&format_context, m_videoname.toStdString().c_str(), nullptr, nullptr) < 0)
 	{
@@ -76,7 +74,7 @@ void VideoFrameCollector_ffmpeg::run()
 		video_codeccontext->pix_fmt,
 		video_codeccontext->width,
 		video_codeccontext->height,
-		AV_PIX_FMT_RGB32,
+		AV_PIX_FMT_GRAY8,
 		SWS_BICUBIC,
 		NULL,
 		NULL,
@@ -84,12 +82,12 @@ void VideoFrameCollector_ffmpeg::run()
 		);
 
 	// (转存格式)一帧需要的字节数 取决于 格式、图像大小
-	int num_bytes = avpicture_get_size(AV_PIX_FMT_RGB32, video_codeccontext->width, video_codeccontext->height);
+	int num_bytes = avpicture_get_size(AV_PIX_FMT_GRAY8, video_codeccontext->width, video_codeccontext->height);
 	
 
 	// 根据(转存格式)一帧需要的字节数 给帧申请一个缓冲区 来装载一帧的内容
 	uint8_t* out_buffer = (uint8_t*)av_malloc(num_bytes * sizeof(uint8_t));
-	avpicture_fill((AVPicture*)frameRGB, out_buffer, AV_PIX_FMT_RGB32, video_codeccontext->width, video_codeccontext->height);
+	avpicture_fill((AVPicture*)frameRGB, out_buffer, AV_PIX_FMT_GRAY8, video_codeccontext->width, video_codeccontext->height);
 
 	// 图像大小
 	int frame_size = video_codeccontext->width * video_codeccontext->height;
@@ -127,24 +125,25 @@ void VideoFrameCollector_ffmpeg::run()
 			sws_scale(img_convert_ctx, frame->data, frame->linesize, 0, video_codeccontext->height, frameRGB->data, frameRGB->linesize);
 		}
 
-		QImage image((uchar*)out_buffer, video_codeccontext->width, video_codeccontext->height, QImage::Format_RGB32);
-		emit collect_one_frame(QPixmap::fromImage(image));
+		emit collect_one_frame(out_buffer, video_codeccontext->width, video_codeccontext->height);
 	}
 
 	av_free(out_buffer);						// 清空缓冲区
 	av_free(frameRGB);
 	avcodec_close(video_codeccontext);
 	avformat_close_input(&format_context);
+	emit finish_collect_frame();
 }
 
 
 
 
 
-VideoPlayer_ffmpeg_kit::VideoPlayer_ffmpeg_kit(QWidget* p)
+VideoPlayer_ffmpeg_kit::VideoPlayer_ffmpeg_kit(QWidget* p) :
+	QWidget(p)
 {
-	video_display = new QLabel(p);
-	video_display->setGeometry(0, 0, 900, 900);
+	frame_displayer = new FrameDisplayWidget(this);
+	frame_displayer->setGeometry(0, 0, 900, 900);
 }
 
 
@@ -156,9 +155,10 @@ VideoPlayer_ffmpeg::VideoPlayer_ffmpeg(QWidget* p):
 QWidget(p)
 {
 	m_collector = new VideoFrameCollector_ffmpeg(this);
-	connect(m_collector, &VideoFrameCollector_ffmpeg::collect_one_frame, this, &VideoPlayer_ffmpeg::show_frame);
+	connect(m_collector, &VideoFrameCollector_ffmpeg::collect_one_frame, this, &VideoPlayer_ffmpeg::show_frame, Qt::DirectConnection);
+	connect(m_collector, &VideoFrameCollector_ffmpeg::finish_collect_frame, this, &VideoPlayer_ffmpeg::slot_finish_collect_frame);
 
-	m_VideoPlayer_ffmpeg_kit = new VideoPlayer_ffmpeg_kit;
+	m_VideoPlayer_ffmpeg_kit = new VideoPlayer_ffmpeg_kit(this);
 }
 
 VideoPlayer_ffmpeg::~VideoPlayer_ffmpeg()
@@ -168,13 +168,23 @@ VideoPlayer_ffmpeg::~VideoPlayer_ffmpeg()
 
 void VideoPlayer_ffmpeg::play(const QString & video_name)
 {
-	m_VideoPlayer_ffmpeg_kit->video_display->show();
+	m_VideoPlayer_ffmpeg_kit->frame_displayer->show();
 	this->show();
 	m_collector->set_videoname(video_name);
 	m_collector->start();
 }
 
-void VideoPlayer_ffmpeg::show_frame(const QPixmap& pixmap)
+void VideoPlayer_ffmpeg::show_frame(uchar* frame_date, int w, int h)
 {
-	m_VideoPlayer_ffmpeg_kit->video_display->setPixmap(pixmap);
+	m_VideoPlayer_ffmpeg_kit->frame_displayer->show_frame(frame_date, w, h);
+}
+
+void VideoPlayer_ffmpeg::slot_finish_collect_frame()
+{
+	m_collector->quit();
+	m_collector->terminate();
+	m_VideoPlayer_ffmpeg_kit->frame_displayer->hide();
+	this->hide();
+
+	emit finish_play_video();
 }

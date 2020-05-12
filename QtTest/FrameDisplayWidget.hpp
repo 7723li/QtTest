@@ -16,40 +16,39 @@
 @interface[1] show_frame(const uchar* frame_data, int w, int h) [ 默认为单通道灰度图 可以使用 ]
 @interface[2] show_frame(const cv::Mat* frame)	[ 建议使用 ]
 */
-class VideoDisplayWidget : public QOpenGLWidget
+class FrameDisplayWidget : public QOpenGLWidget
 {
 	Q_OBJECT
 
 public:
-	VideoDisplayWidget(QWidget* p) : QOpenGLWidget(p)
+	FrameDisplayWidget(QWidget* p) : QOpenGLWidget(p)
 	{
 		m_show_mat = cv::Mat(this->height(), this->width(), CV_8UC1);
 	}
-	~VideoDisplayWidget(){}
+	~FrameDisplayWidget(){}
 
 public slots:
 	/*
 	@brief
 	传入图像数据 默认为单通道灰度图
 	*/
-	void show_frame(const uchar* frame_data, int w, int h)
+	void show_frame(uchar* frame_data, int w, int h)
 	{
 		if (nullptr == frame_data)
 			return;
 
-		m_show_mat = cv::Mat(h, w, CV_8UC1);
+		m_show_mat = cv::Mat(h, w, CV_8UC1, frame_data);
+		update();
 	}
 
 	/*
 	@brief
 	传入图像数据 默认为单通道灰度图
 	*/
-	void show_frame(const cv::Mat* frame)
+	void show_frame(cv::Mat & frame)
 	{
-		if (nullptr == frame)
-			return;
-
-		frame->copyTo(m_show_mat);
+		frame.copyTo(m_show_mat);
+		update();
 	}
 
 protected:

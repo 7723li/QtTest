@@ -193,5 +193,5 @@ void Fuck::slot_switch_sth_widg()
 void Fuck::slot_switch_PageVideoCollect()
 {
 	m_stackwidget->setCurrentWidget(m_PageVideoCollect);
-	m_PageVideoCollect->prepare_record("");
+	m_PageVideoCollect->init_PageVideoRecord("");
 }

@@ -52,6 +52,8 @@ class FrameObserver : public QObject, public IFrameObserver
 public:
 	FrameObserver(CameraPtr camera);
 
+	void set_camera(CameraPtr camera) { m_pCamera = camera; }
+
 	/*
 	@brief
 	帧回调函数 继承自IFrameObserver
@@ -75,11 +77,8 @@ public:
 	virtual ~AVTCamera();
 
 	virtual int openCamera();
-	virtual bool get_one_frame(cv::Mat*);
+	virtual bool get_one_frame(cv::Mat & frame);
 	virtual int closeCamera();
-
-	virtual double get_framerate() override;
-	virtual bool is_camera_connected() override;
 
 private slots:
 	/*
@@ -94,6 +93,12 @@ private slots:
 	@param[1] frame 回调函数获取的帧 FramePtr
 	*/
 	void slot_obsr_get_new_frame(FramePtr frame);
+	/*
+	@brief
+	由定时器一秒一计算 算出上一秒的帧率
+	*/
+	void slot_cnt_framerate();
+
 
 private:
 	VimbaSystem & m_vimba_system;				// Vimba系统
@@ -107,4 +112,9 @@ private:
 	VmbInt64_t m_frame_pixelformat;				// 图像格式
 
 	std::mutex m_mutex;							// 观察者回调函数 与 录制界面均需用到数据队列 需要避免出现调用冲突
+
+	double m_frame_obsr_cnt;					// 回调函数调用次数
+	double m_save_frame_obsr_cnt;				// 保存的 上一秒的回调函数调用次数
+
+	QTimer* m_cnt_framerate_timer;				// 用于计算fps的定时器 fps = 当前回调函数调用次数 - 上一秒回调函数调用次数
 };
