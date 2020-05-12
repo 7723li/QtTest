@@ -79,14 +79,20 @@ public slots:
 
 private:
 	void clear_videodisplay();								// 清理图像显示区域
-
-	void show_camera_openstatus(int openstatus);
+	
+	void load_old_videos();
+	void put_one_video_thumbnail(const QString & video_path, const QString & icon_path);
 
 	void begin_camera_and_capture();
 	void stop_camera_and_capture();
 
+	void show_camera_openstatus(int openstatus);
+
 	void begin_capture();
 	void stop_capture();
+
+	void begin_record();
+	void stop_record();
 
 private slots:
 	void slot_get_one_frame();								// 从相机处获取一帧
@@ -95,7 +101,7 @@ private slots:
 	void slot_timeout_video_duration_timer();				// 相机录制计时
 
 	void slot_replay_begin(QListWidgetItem* choosen_video);	// 重播录制的视频
-	void slot_replay_finished();							// 重播完毕
+	void slot_replay_finish();							// 重播完毕
 
 	void slot_exit();										// 退出界面
 
