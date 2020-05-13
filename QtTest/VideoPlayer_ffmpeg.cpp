@@ -99,6 +99,8 @@ void VideoFrameCollector_ffmpeg::run()
 	// 打印输入视频的格式
 	// av_dump_format(format_context, 0, file_name, 0);
 
+	QPixmap pixmap(video_codeccontext->width, video_codeccontext->height);
+	QImage image = QImage(video_codeccontext->width, video_codeccontext->height, QImage::Format_Grayscale8);
 	int get_picture = 0;
 	int num = 0;
 	while (true)
@@ -125,8 +127,11 @@ void VideoFrameCollector_ffmpeg::run()
 			sws_scale(img_convert_ctx, frame->data, frame->linesize, 0, video_codeccontext->height, frameRGB->data, frameRGB->linesize);
 		}
 
-		QImage image(out_buffer, video_codeccontext->width, video_codeccontext->height, QImage::Format_Grayscale8);
-		emit collect_one_frame(QPixmap::fromImage(image));
+		memcpy(image.bits(), out_buffer, video_codeccontext->width* video_codeccontext->height);
+		if (pixmap.convertFromImage(image))
+		{
+			emit collect_one_frame(pixmap);
+		}
 	}
 
 	av_free(out_buffer);						// 清空缓冲区
@@ -175,10 +180,9 @@ void VideoPlayer_ffmpeg::play(const QString & video_name)
 	m_collector->start();
 }
 
-void VideoPlayer_ffmpeg::show_frame(const QPixmap pixmap)
+void VideoPlayer_ffmpeg::show_frame(const QPixmap& pixmap)
 {
-	m_VideoPlayer_ffmpeg_kit->frame_displayer->setPixmap(
-		pixmap.scaled(m_VideoPlayer_ffmpeg_kit->frame_displayer->size()));
+	m_VideoPlayer_ffmpeg_kit->frame_displayer->setPixmap(pixmap);
 }
 
 void VideoPlayer_ffmpeg::slot_finish_collect_frame()

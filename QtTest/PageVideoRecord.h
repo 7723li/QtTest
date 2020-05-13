@@ -32,32 +32,6 @@
 #include "AVTCamera.h"
 #include "VideoPlayer_ffmpeg.h"
 
-//class test_label : public QLabel
-//{
-//public:
-//	test_label(QWidget* p = nullptr) :
-//		QLabel(p)
-//	{
-//
-//	}
-//
-//void show_image(const QImage image)
-//	{
-//		m_image = image;
-//		this->update();
-//	}
-//
-//protected:
-//	void paintEvent(QPaintEvent* e)
-//	{
-//		QPainter painter(this);
-//		painter.drawImage(QPoint(0, 0), m_image);
-//	}
-//
-//private:
-//	QImage m_image;
-//};
-
 /*
 @brief
 录制界面工具箱
@@ -129,8 +103,8 @@ private:
 	void begin_show_frame();								// 开始显示图像(启动定时器 运行间隔根据帧率决定)
 	void stop_show_frame();									// 停止显示图像(关闭定时器)
 
-	void begin_record();									// 开始录制(开启子线程)
-	void stop_record();										// 停止录制(改变状态 关闭子线程 保存视频)
+	void begin_record();									// 开始录制
+	void stop_record();										// 停止录制(改变状态 保存视频)
 
 private slots:
 	void slot_show_one_frame();								// 显示图像槽函数

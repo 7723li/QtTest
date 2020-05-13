@@ -1,5 +1,7 @@
 #pragma once
 
+#include <windows.h>
+
 #include <QLoggingCategory>
 #include <QFile>
 #include <QFileInfo>
@@ -38,7 +40,7 @@ protected:
 	void run();
 
 signals:
-	void collect_one_frame(const QPixmap pixmap);
+	void collect_one_frame(const QPixmap& pixmap);
 	void finish_collect_frame();
 
 private:
@@ -74,7 +76,7 @@ public:
 	void play(const QString & video_name);
 
 private slots:
-	void show_frame(const QPixmap pixmap);
+	void show_frame(const QPixmap& pixmap);
 	void slot_finish_collect_frame();
 
 signals:
