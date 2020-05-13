@@ -152,6 +152,14 @@ PromptBox* PromptBox::inst(QWidget* p)
 PromptBox_rettype PromptBox::msgbox_go(PromptBox_msgtype msgtype, PromptBox_btntype btntype, tiptype show_tips, int interval_ms, bool auto_close)
 {
 	set_MsgBox_style(msgtype, btntype, show_tips);
+	if (auto_close)
+	{
+		m_kit->close_btn->hide();
+	}
+	else
+	{
+		m_kit->close_btn->show();
+	}
 	this->show();
 
 	if (auto_close)
@@ -182,6 +190,16 @@ void PromptBox::progbar_prepare(int min, int max, Prompt_progbar_type bartype, b
 		set_Progress_style();
 		break;
 	}
+
+	if (auto_close)
+	{
+		m_kit->close_btn->hide();
+	}
+	else
+	{
+		m_kit->close_btn->show();
+	}
+
 	m_prog_autoclose = auto_close;
 	m_prog_range = max;
 

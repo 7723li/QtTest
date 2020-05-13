@@ -3,6 +3,7 @@
 #include <QLoggingCategory>
 #include <QMetaType>
 #include <QTimer>
+#include <QDatetime>
 
 #include <mutex>
 #include <math.h>
@@ -79,6 +80,8 @@ public:
 	virtual int openCamera();
 	virtual bool get_one_frame(cv::Mat & frame);
 	virtual int closeCamera();
+
+	virtual double get_framerate() override;
 
 private slots:
 	/*

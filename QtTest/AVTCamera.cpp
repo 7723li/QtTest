@@ -274,7 +274,7 @@ int AVTCamera::openCamera()
 			return camerabase::OpenFailed;
 		}
 	}
-	double target_framerate = 60.0;
+	double target_framerate = 30.0;
 	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionFrameRate", property_feature))
 	{
 		property_feature->GetValue(m_framerate);
@@ -342,12 +342,11 @@ bool AVTCamera::get_one_frame(cv::Mat & frame)
 	if (nullptr == data)
 		return false;
 
-	frame = cv::Mat(cv::Size(m_frame_width, m_frame_height), CV_8UC1, data);
-	/*if (frame.cols != m_frame_width || frame.rows != m_frame_height)
+	if (frame.cols != m_frame_width || frame.rows != m_frame_height)
 	{
-		frame = cv::Mat(cv::Size(m_frame_width, m_frame_height), CV_8UC1);
+		frame = cv::Mat(cv::Size(m_frame_width, m_frame_height), CV_8UC1, data);
 	}
-	memcpy(frame.data, data, m_frame_area);*/
+	memcpy(frame.data, data, m_frame_area);
 
 	return true;
 }
@@ -388,6 +387,22 @@ int AVTCamera::closeCamera()
 	m_is_connected = false;
 
 	return camerabase::CloseSuccess;
+}
+
+double AVTCamera::get_framerate()
+{
+	if (m_framerate <= 0)
+	{
+		FeaturePtr cmd_feature;
+		VmbInt64_t frame_rate = 0;
+		if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionFrameRate", cmd_feature))
+		{
+			cmd_feature->GetValue(frame_rate);
+			m_framerate = frame_rate;
+		}
+	}
+
+	return m_framerate;
 }
 
 void AVTCamera::slot_obsr_camera_list_changed(int reason)

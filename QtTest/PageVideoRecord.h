@@ -20,6 +20,8 @@
 #include <QTimer>
 #include <QtConcurrent/QtConcurrent>
 #include <QFuture>
+#include <QPaintEvent>
+#include <QPainter>
 
 #include <thread>
 
@@ -29,8 +31,32 @@
 #include "VideoListWidget.h"
 #include "AVTCamera.h"
 #include "VideoPlayer_ffmpeg.h"
-#include "FrameDisplayWidget.hpp"
 
+//class test_label : public QLabel
+//{
+//public:
+//	test_label(QWidget* p = nullptr) :
+//		QLabel(p)
+//	{
+//
+//	}
+//
+//void show_image(const QImage image)
+//	{
+//		m_image = image;
+//		this->update();
+//	}
+//
+//protected:
+//	void paintEvent(QPaintEvent* e)
+//	{
+//		QPainter painter(this);
+//		painter.drawImage(QPoint(0, 0), m_image);
+//	}
+//
+//private:
+//	QImage m_image;
+//};
 
 /*
 @brief
@@ -43,7 +69,7 @@ public:
 	~PageVideoRecord_kit(){}
 
 public:
-	FrameDisplayWidget* frame_displayer;// 帧显示器
+	QLabel* frame_displayer;			// 帧显示器
 	QLabel* bed_num_label;				// 床号
 	QLabel* patient_name_label;			// 姓名
 	QLabel* video_time_display;			// 视频时长显示
@@ -72,57 +98,73 @@ public:
 public slots:
 	/*
 	@brief
-	外部切换界面入口
+	外部进入录制界面接口
 	@param[1] examid 病例id QString
 	*/
-	void init_PageVideoRecord(const QString & examid);
+	void enter_PageVideoRecord(const QString & examid);		// 进入录制界面
+	/*
+	@brief
+	外部退出录制界面接口
+	*/
+	void exit_PageVideoRecord();							// 退出录制界面
 
 private:
 	void clear_videodisplay();								// 清理图像显示区域
 	
-	void load_old_videos();
-	void put_one_video_thumbnail(const QString & video_path, const QString & icon_path);
+	void load_old_videos();									// 加载之前的录像 父视频
+	
+	void put_video_thumb(const QString & video_path, const QString & icon_path);	// 放置一个视频缩略图
 
-	void begin_camera_and_capture();
-	void stop_camera_and_capture();
+	bool open_camera();										// 打开相机
+	void close_camera();									// 关闭相机
 
-	void show_camera_openstatus(int openstatus);
+	void show_camera_openstatus(int openstatus);			// 提示相机打开状态
+	
+	void begin_capture();									// 开始捕捉影像(开启子线程)
+	void stop_capture();									// 停止捕捉影像(改变状态 关闭子线程)
+	void capture_thread();									// 子线程 从相机的缓冲区处获取新的一帧
 
-	void begin_capture();
-	void stop_capture();
+	bool get_useful_fps(double & fps);						// 获取一个有效(>0)的帧率 用于显示和录制
 
-	void begin_record();
-	void stop_record();
+	void begin_show_frame();								// 开始显示图像(启动定时器 运行间隔根据帧率决定)
+	void stop_show_frame();									// 停止显示图像(关闭定时器)
+
+	void begin_record();									// 开始录制(开启子线程)
+	void stop_record();										// 停止录制(改变状态 关闭子线程 保存视频)
 
 private slots:
-	void slot_get_one_frame();								// 从相机处获取一帧
+	void slot_show_one_frame();								// 显示图像槽函数
 
 	void slot_begin_or_finish_record();						// 开始(结束)录制视频
-	void slot_timeout_video_duration_timer();				// 相机录制计时
+
+	void slot_timeout_video_duration_timer();				// 显示录像时长
 
 	void slot_replay_begin(QListWidgetItem* choosen_video);	// 重播录制的视频
-	void slot_replay_finish();							// 重播完毕
-
-	void slot_exit();										// 退出界面
+	void slot_replay_finish();								// 重播完毕
 
 signals:
-	void PageVideoRecord_exit(const QString & examid);
+	void PageVideoRecord_exit(const QString & examid);		// 退出录制界面时发出的信号 由主界面接收
 
 private:
 	PageVideoRecord_kit* m_PageVideoRecord_kit;
 
-	std::vector<QString> m_recored_videoname_list;	// 当前病例之前录制过的视频 包括最新录制完成的视频
+	std::vector<QString> m_recored_videoname_list;			// 当前病例之前录制过的视频 包括最新录制完成的视频
 
-	QString m_examid;					// 病例ID 由外部传入
+	QString m_examid;										// 病例ID 由外部传入
 
-	QTimer* m_get_frame_timer;			// 取帧定时器
-	QTimer* m_record_duration_timer;	// 用于记录录像时长的定时器
-	int m_record_duration_period;		// 录像时长定时器溢出次数 = 录像时长秒数
+	QTimer* m_show_frame_timer;								// 显示图像定时器
+	QTimer* m_record_duration_timer;						// 用于记录录像时长的定时器
+	int m_record_duration_period;							// 录像时长定时器溢出次数 = 录像时长秒数
 
-	cv::VideoWriter m_VideoWriter;		// 将Mat写入到视频
+	cv::Mat m_mat;											// 帧数据缓存
+	cv::VideoWriter m_VideoWriter;							// 将Mat写入到视频
 
-	camerabase* m_camerabase;			// 相机封装 通用相机接口
-	AVTCamera* m_avt_camera;			// AVT相机
+	camerabase* m_camerabase;								// 相机封装 通用相机接口
+	AVTCamera* m_avt_camera;								// AVT相机
 
-	bool m_show_frame;
+	bool m_is_need_capture;									// 是否需要(可以)捕捉影像
+	bool m_is_capturing;									// 是否正在捕捉影像
+
+	bool m_is_need_record;									// 是否需要(可以)录制视频
+	bool m_is_recording;									// 是否正在录制视频
 };

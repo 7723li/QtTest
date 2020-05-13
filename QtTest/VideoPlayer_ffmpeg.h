@@ -7,6 +7,7 @@
 #include <QImage>
 #include <QPixmap>
 #include <QLabel>
+#include <QPaintEvent>
 
 extern "C"
 {
@@ -16,8 +17,6 @@ extern "C"
 #include "externalFile/ffmpeg/include/libavdevice/avdevice.h"
 #include "externalFile/ffmpeg/include/libavutil/pixfmt.h"
 }
-
-#include "FrameDisplayWidget.hpp"
 
 /*
 @brief
@@ -39,7 +38,7 @@ protected:
 	void run();
 
 signals:
-	void collect_one_frame(uchar* frame_date, int w, int h);
+	void collect_one_frame(const QPixmap pixmap);
 	void finish_collect_frame();
 
 private:
@@ -55,7 +54,7 @@ typedef struct VideoPlayer_ffmpeg_kit : public QWidget
 public:
 	explicit VideoPlayer_ffmpeg_kit(QWidget* p = nullptr);
 
-	FrameDisplayWidget* frame_displayer;
+	QLabel* frame_displayer;
 }
 VideoPlayer_ffmpeg_kit;
 
@@ -75,7 +74,7 @@ public:
 	void play(const QString & video_name);
 
 private slots:
-	void show_frame(uchar* frame_date, int w, int h);
+	void show_frame(const QPixmap pixmap);
 	void slot_finish_collect_frame();
 
 signals:
@@ -85,4 +84,6 @@ private:
 	VideoFrameCollector_ffmpeg* m_collector;
 	
 	VideoPlayer_ffmpeg_kit* m_VideoPlayer_ffmpeg_kit;
+
+	QImage m_image;
 };

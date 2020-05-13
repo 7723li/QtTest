@@ -125,7 +125,8 @@ void VideoFrameCollector_ffmpeg::run()
 			sws_scale(img_convert_ctx, frame->data, frame->linesize, 0, video_codeccontext->height, frameRGB->data, frameRGB->linesize);
 		}
 
-		emit collect_one_frame(out_buffer, video_codeccontext->width, video_codeccontext->height);
+		QImage image(out_buffer, video_codeccontext->width, video_codeccontext->height, QImage::Format_Grayscale8);
+		emit collect_one_frame(QPixmap::fromImage(image));
 	}
 
 	av_free(out_buffer);						// Çå¿Õ»º³åÇø
@@ -142,7 +143,7 @@ void VideoFrameCollector_ffmpeg::run()
 VideoPlayer_ffmpeg_kit::VideoPlayer_ffmpeg_kit(QWidget* p) :
 	QWidget(p)
 {
-	frame_displayer = new FrameDisplayWidget(this);
+	frame_displayer = new QLabel(this);
 	frame_displayer->setGeometry(0, 0, 900, 900);
 }
 
@@ -174,9 +175,10 @@ void VideoPlayer_ffmpeg::play(const QString & video_name)
 	m_collector->start();
 }
 
-void VideoPlayer_ffmpeg::show_frame(uchar* frame_date, int w, int h)
+void VideoPlayer_ffmpeg::show_frame(const QPixmap pixmap)
 {
-	m_VideoPlayer_ffmpeg_kit->frame_displayer->show_frame(frame_date, w, h);
+	m_VideoPlayer_ffmpeg_kit->frame_displayer->setPixmap(
+		pixmap.scaled(m_VideoPlayer_ffmpeg_kit->frame_displayer->size()));
 }
 
 void VideoPlayer_ffmpeg::slot_finish_collect_frame()
