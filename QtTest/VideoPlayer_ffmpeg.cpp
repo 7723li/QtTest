@@ -111,6 +111,8 @@ void VideoFrameCollector_ffmpeg::run()
 			break;
 		}
 
+		read_packct->pts;
+
 		// 安全性判断 确保是视频流出来的东西
 		if (read_packct->stream_index == video_stream_index)
 		{

@@ -3,29 +3,11 @@
 const QString g_test_picname = "./test.jpg";
 const QString g_test_videoname = "./test.avi";
 
-static std::mutex g_mutex;
-static std::list<cv::Mat> g_save_cache;
-
-void VideoSaver::run()
-{
-	_run = true;
-	while (_run)
-	{
-		if (g_save_cache.empty())
-			continue;
-
-		g_mutex.lock();
-		cv::Mat mat = g_save_cache.front();
-		g_save_cache.pop_front();
-		g_mutex.unlock();
-
-		_w->write(mat);
-	}
-}
-void VideoSaver::stop()
-{
-	_run = false;
-}
+static const std::map<int, QImage::Format> g_s_mat_2_image = {
+	{ CV_8UC1, QImage::Format_Grayscale8 },
+	{ CV_8UC3, QImage::Format_RGB888 },
+	{ CV_8UC4, QImage::Format_RGB32 },
+};
 
 VideoCapture::VideoCapture(PageVideoRecord* p) : 
 QThread(p), need_capture(false), need_record(false),
@@ -42,15 +24,14 @@ bool VideoCapture::begin_capture(camerabase* c, cv::Mat* m, cv::VideoWriter* v)
 	mat = m;
 	writer = v;
 
-	g_save_cache.clear();
 	need_capture = true;
-	this->start();
 
 	return true;
 }
 void VideoCapture::stop_capture()
 {
 	need_capture = false;
+	this->wait();
 }
 void VideoCapture::begin_record()
 {
@@ -62,35 +43,86 @@ void VideoCapture::stop_record()
 }
 bool VideoCapture::capturing()
 {
-	return (need_capture | this->isRunning());
+	return (need_capture || this->isRunning());
 }
 bool VideoCapture::recording()
 {
-	return (need_record & this->isRunning());
+	if (nullptr == writer)
+		return false;
+	else
+		return (need_record && writer->isOpened() && this->isRunning());
 }
 void VideoCapture::run()
 {
 	while (true)
 	{		
-		if (!need_capture)
+		if (false == need_capture)
 		{
 			break;
 		}
 
+		bool is_writer_open = writer->isOpened();
 		bool is_get_frame_success = cam->get_one_frame(*mat);
 		if (is_get_frame_success)
 		{
-			if (need_record && writer->isOpened())
+			if (need_record)
 			{
-				g_mutex.lock();
-				g_save_cache.push_back(*mat);
-				g_mutex.unlock();
+				if (is_writer_open)
+				{
+					writer->write(*mat);
+				}
 			}
-			/*if (need_record && writer->isOpened())
+			else
 			{
-				writer->write(*mat);
-			}*/
+				if (is_writer_open)
+				{
+					writer->release();
+				}
+
+			}
 		}
+	}
+}
+
+TransformPicture::TransformPicture(PageVideoRecord* p):
+QThread(p), _mat(nullptr), _run(false)
+{
+
+}
+bool TransformPicture::begin_transform(cv::Mat* mat, QSize show_size, double sleep_time)
+{
+	if (nullptr == mat || show_size.width() == 0 || show_size.height() == 0)
+	{
+		return false;
+	}
+
+	_mat = mat;
+	_show_size = show_size;
+	_sleep_time = sleep_time;
+	_run = true;
+
+	return true;
+}
+void TransformPicture::stop_transform()
+{
+	_run = false;
+	this->wait();
+}
+void TransformPicture::run()
+{
+	while (true)
+	{
+		if (false == _run)
+		{
+			break;
+		}
+
+		auto img_fmt_iter = g_s_mat_2_image.find(_mat->type());
+		QImage::Format img_fmt = (img_fmt_iter != g_s_mat_2_image.end() ? img_fmt_iter->second : QImage::Format_Grayscale8);
+		const QImage& image = QImage(_mat->data, _mat->cols, _mat->rows, img_fmt);
+
+		emit show_one_frame(QPixmap::fromImage(image).scaled(_show_size));
+		::Sleep(_sleep_time);
 	}
 }
 
@@ -160,16 +192,14 @@ PageVideoRecord::PageVideoRecord(QWidget* parent) :
 	connect(m_PageVideoRecord_kit->video_list, &VideoListWidget::video_choosen, this, &PageVideoRecord::slot_replay_begin);
 	connect(m_PageVideoRecord_kit->videoplayer, &VideoPlayer_ffmpeg::finish_play_video, this, &PageVideoRecord::slot_replay_finish);
 
-	m_show_frame_timer = new QTimer(this);
-	m_show_frame_timer->setTimerType(Qt::TimerType::PreciseTimer);
-	connect(m_show_frame_timer, &QTimer::timeout, this, &PageVideoRecord::slot_show_one_frame, Qt::DirectConnection);
+	m_tranpicthr = new TransformPicture(this);
+	connect(m_tranpicthr, &TransformPicture::show_one_frame, this, &PageVideoRecord::slot_show_one_frame);
 
 	m_record_duration_timer = new QTimer(this);
 	m_record_duration_timer->setTimerType(Qt::TimerType::PreciseTimer);
-	connect(m_record_duration_timer, &QTimer::timeout, this, &PageVideoRecord::slot_timeout_video_duration_timer);
+	connect(m_record_duration_timer, &QTimer::timeout, this, &PageVideoRecord::slot_show_recordtime);
 
 	m_record_duration_period = QTime(0, 0, 0, 0);
-	//m_record_duration_period = 0;
 
 	m_video_capture = new VideoCapture(this);
 
@@ -181,31 +211,31 @@ void PageVideoRecord::enter_PageVideoRecord(const QString & examid)
 {
 	m_examid = examid;
 
-	load_old_vidthumb();					// 加载之前的视频缩略图
-	clear_videodisplay();					// 清理显示屏
+	load_old_vidthumb();						// 加载之前的视频缩略图
+	clear_videodisplay();						// 清理显示屏
 	int sta = -1;
-	sta = m_camerabase->openCamera();		// 打开相机
-	show_camera_openstatus(sta);			// 提示相机打开状态
-	if (sta == camerabase::OpenSuccess)		// 看看成功
+	sta = m_camerabase->openCamera();			// 打开相机
+	show_camera_openstatus(sta);				// 提示相机打开状态
+	if (sta == camerabase::OpenSuccess)			// 打开成功
 	{
 		int w = 0, h = 0;
 		m_camerabase->get_frame_wh(w, h);
-		m_mat = cv::Mat(w, h, CV_8UC1);		// 分配帧空间大小
+		m_mat = cv::Mat::zeros(w, h, CV_8UC1);	// 分配帧空间大小
 
-		begin_capture();					// 开始捕捉图像
-		begin_show_frame();					// 开始显示图像
+		begin_capture();						// 开始捕捉图像
+		begin_show_frame();						// 开始显示图像
 	}
-	else									// 摄像头打开异常
+	else										// 摄像头打开异常
 	{
-		stop_show_frame();					// 取消显示
-		stop_capture();						// 取消捕捉
-		sta = m_camerabase->closeCamera();	// 关闭摄像头
-		show_camera_closestatus(sta);		// 提示关闭状态
+		stop_show_frame();						// 取消显示
+		stop_capture();							// 取消捕捉
+		sta = m_camerabase->closeCamera();		// 关闭摄像头
+		show_camera_closestatus(sta);			// 提示关闭状态
 	}
 }
 void PageVideoRecord::exit_PageVideoRecord()
 {
-	if (m_video_capture->recording())		// 录像请不要随便处置 参考陈冠希老师
+	if (m_video_capture->recording())			// 录像请不要随便处置 参考陈冠希老师
 	{
 		PromptBoxInst()->msgbox_go(
 			PromptBox_msgtype::Warning,
@@ -323,11 +353,16 @@ void PageVideoRecord::show_camera_closestatus(int closestatus)
 
 void PageVideoRecord::begin_capture()
 {
-	m_video_capture->begin_capture(m_camerabase, &m_mat, &m_VideoWriter);
+	bool succ = m_video_capture->begin_capture(m_camerabase, &m_mat, &m_VideoWriter);
+	if (succ)
+	{
+		m_video_capture->start();
+	}
 }
 void PageVideoRecord::stop_capture()
 {
 	m_video_capture->stop_capture();
+	while (m_video_capture->capturing());
 }
 
 bool PageVideoRecord::get_useful_fps(double & fps)
@@ -358,37 +393,33 @@ void PageVideoRecord::begin_show_frame()
 			);
 		return;
 	}
-	m_show_frame_timer->start((double)1000 / fps);
+	QSize show_size = m_PageVideoRecord_kit->frame_displayer->size();
+	double sleep_time = (double)1000 / fps;
+	bool succ = m_tranpicthr->begin_transform(&m_mat, show_size, sleep_time);
+	if (succ)
+	{
+		m_tranpicthr->start();
+	}
 }
 void PageVideoRecord::stop_show_frame()
 {
-	m_show_frame_timer->stop();
+	m_tranpicthr->stop_transform();
 }
-void PageVideoRecord::slot_show_one_frame()
+void PageVideoRecord::slot_show_one_frame(const QPixmap& _pixmap)
 {
-	static const std::map<int, QImage::Format> s_mat_2_image = {
-		{ CV_8UC1, QImage::Format_Grayscale8 },
-		{ CV_8UC3, QImage::Format_RGB888 },
-		{ CV_8UC4, QImage::Format_RGB32 },
-	};
-
-	// 显示
-	auto img_fmt_iter = s_mat_2_image.find(m_mat.type());
-	QImage::Format img_fmt = (img_fmt_iter != s_mat_2_image.end() ? img_fmt_iter->second : QImage::Format_Grayscale8);
-	QImage image = QImage(m_mat.data, m_mat.cols, m_mat.rows, img_fmt);
-	m_PageVideoRecord_kit->frame_displayer->setPixmap(QPixmap::fromImage(image).
-		scaled(m_PageVideoRecord_kit->frame_displayer->size()));
+	m_PageVideoRecord_kit->frame_displayer->setPixmap(_pixmap);
 }
 
 void PageVideoRecord::begin_record()
 {
-	m_video_capture->begin_record();						// 更改视频捕捉线程中的录制状态为TRUE 从下一轮捕捉开始录制
-	VideoSaver* a = new VideoSaver(nullptr, &m_VideoWriter);
-	a->start();
+	// 更改视频捕捉线程中的录制状态为TRUE 从下一轮捕捉开始录制
+	m_video_capture->begin_record();
 }
 void PageVideoRecord::stop_record()
 {
-	m_video_capture->stop_record();							// 更改视频捕捉线程中的录制状态为FALSE 从下一轮捕捉停止录制
+	// 更改视频捕捉线程中的录制状态为FALSE 从下一轮捕捉停止录制 并释放视频头
+	m_video_capture->stop_record();
+	while (m_video_capture->recording());
 }
 void PageVideoRecord::slot_begin_or_finish_record()
 {
@@ -413,9 +444,7 @@ void PageVideoRecord::slot_begin_or_finish_record()
 	}
 	else
 	{
-		stop_record();											// 停止录像
-		::Sleep(33);
-		release_record_msg();									// 释放视频头 保存视频
+		stop_record();											// 停止录像 并 在下一个循环释放视频头
 		stop_show_recordtime();									// 隐藏录制时间
 		put_video_vidthumb(g_test_videoname, g_test_picname);	// 放置一个缩略图
 		m_PageVideoRecord_kit->video_list->setEnabled(true);	// 录制完毕 可以回播
@@ -448,13 +477,6 @@ bool PageVideoRecord::apply_record_msg()
 
 	return m_VideoWriter.isOpened();
 }
-void PageVideoRecord::release_record_msg()
-{
-	if (m_VideoWriter.isOpened())
-	{
-		m_VideoWriter.release();							// 保存视频
-	}
-}
 
 void PageVideoRecord::begin_show_recordtime()
 {
@@ -468,7 +490,7 @@ void PageVideoRecord::stop_show_recordtime()
 	m_record_duration_timer->stop();						// 停止计时
 	m_PageVideoRecord_kit->video_time_display->hide();		// 停止显示时间
 }
-void PageVideoRecord::slot_timeout_video_duration_timer()
+void PageVideoRecord::slot_show_recordtime()
 {
 	m_record_duration_period = m_record_duration_period.addSecs(1);
 	m_PageVideoRecord_kit->video_time_display->setText(m_record_duration_period.toString("hh:mm:ss"));

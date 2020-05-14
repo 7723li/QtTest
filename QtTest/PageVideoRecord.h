@@ -33,32 +33,16 @@
 
 class PageVideoRecord;
 
-class VideoSaver : public QThread
-{
-public:
-	VideoSaver(PageVideoRecord* p, cv::VideoWriter* w) :
-		QThread(nullptr), _w(w), _run(false)
-	{
-
-	}
-	~VideoSaver(){}
-
-	virtual void run() override;
-	void stop();
-
-private:
-	cv::VideoWriter* _w;
-	bool _run;
-};
-
 /*
 @brief
 录制界面的图像获取子线程
 负责从相机缓冲区处获取相机解析好的帧数据
 并且 保存视频
 */
-class VideoCapture : private QThread
+class VideoCapture : public QThread
 {
+	Q_OBJECT
+
 public:
 	/*
 	@note
@@ -74,10 +58,7 @@ public:
 	@param[2] m 录制界面 ->已经分配好<- 的帧空间 cv::Mat*
 	@param[3] v 录制界面的VideoWriter cv::VideoWriter*
 	*/
-	bool begin_capture(
-		camerabase* c,
-		cv::Mat* m,
-		cv::VideoWriter* v);
+	bool begin_capture(camerabase* c, cv::Mat* m, cv::VideoWriter* v);
 	/*
 	@brief
 	停止获取图像
@@ -120,6 +101,30 @@ private:
 	camerabase* cam;
 	cv::Mat* mat;
 	cv::VideoWriter* writer;
+};
+
+class TransformPicture : public QThread
+{
+	Q_OBJECT
+
+public:
+	TransformPicture(PageVideoRecord* p);
+	~TransformPicture(){}
+
+	bool begin_transform(cv::Mat* mat, QSize show_size, double sleep_time);
+	void stop_transform();
+
+private:
+	virtual void run() override;
+
+signals:
+	void show_one_frame(const QPixmap & image);
+
+private:
+	cv::Mat* _mat;
+	QSize _show_size;
+	double _sleep_time;
+	bool _run;
 };
 
 /*
@@ -192,16 +197,18 @@ private:
 
 	void begin_record();									// 从下一轮影像捕捉循环开始录制
 	void stop_record();										// 从下一个影像捕捉循环停止录制
-	bool apply_record_msg();									// 创建视频头
-	void release_record_msg();								// 释放视频头(保存视频)
+
+	bool apply_record_msg();								// 创建视频头
+
 	void begin_show_recordtime();							// 开始显示录制时间
 	void stop_show_recordtime();							// 停止显示录制时间
 
 private slots:
-	void slot_show_one_frame();								// 显示图像槽函数
+	void slot_show_one_frame(const QPixmap & _pixmap);		// 显示图像槽函数
 
 	void slot_begin_or_finish_record();						// 开始(结束)录制视频
-	void slot_timeout_video_duration_timer();				// 显示录像时长
+
+	void slot_show_recordtime();							// 显示录像时长
 
 	void slot_replay_begin(QListWidgetItem* choosen_video);	// 重播录制的视频
 	void slot_replay_finish();								// 重播完毕
@@ -216,8 +223,11 @@ private:
 	thumb_name m_map_video_thumb_2_name;					// 由缩略图找到视频名称
 
 	QString m_examid;										// 病例ID 由外部传入
+	QString m_video_path;									// 录制视频的保存路径
+	QString m_video_thumb_path;								// 录制视频的缩略图的保存路径
 
-	QTimer* m_show_frame_timer;								// 显示图像定时器
+	TransformPicture* m_tranpicthr;							// Mat->Pixmap图像格式转换子线程 (transform picture format thread)
+
 	QTimer* m_record_duration_timer;						// 用于记录录像时长的定时器
 	QTime m_record_duration_period;							// 录像时长 每次定时器溢出自加1
 
