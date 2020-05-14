@@ -20,6 +20,8 @@ extern "C"
 #include "externalFile/ffmpeg/include/libavutil/pixfmt.h"
 }
 
+class VideoPlayer_ffmpeg;
+
 /*
 @brief
 流数据处理器
@@ -31,13 +33,13 @@ class VideoFrameCollector_ffmpeg : public QThread
 	Q_OBJECT
 
 public:
-	explicit VideoFrameCollector_ffmpeg(QWidget* p = nullptr);
+	explicit VideoFrameCollector_ffmpeg(VideoPlayer_ffmpeg* p = nullptr);
 	~VideoFrameCollector_ffmpeg(){}
 
 	void set_videoname(const QString& videoname);
 
 protected:
-	void run();
+	virtual void run() override;
 
 signals:
 	void collect_one_frame(const QPixmap& pixmap);
@@ -54,7 +56,7 @@ private:
 typedef struct VideoPlayer_ffmpeg_kit : public QWidget
 {
 public:
-	explicit VideoPlayer_ffmpeg_kit(QWidget* p = nullptr);
+	explicit VideoPlayer_ffmpeg_kit(VideoPlayer_ffmpeg* p = nullptr);
 
 	QLabel* frame_displayer;
 }

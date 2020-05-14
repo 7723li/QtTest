@@ -17,7 +17,7 @@ Fuck::Fuck(QWidget *parent)
 
 	btn_3 = new QPushButton("789", this);
 	btn_3->setGeometry(220, 0, 100, 30);
-	connect(btn_3, &QPushButton::clicked, this, &Fuck::slot_switch_PageVideoCollect);
+	connect(btn_3, &QPushButton::clicked, this, &Fuck::slot_enter_PageVideoCollect);
 
 	timer_useless = new QTimer(this);
 	loop_useless = new QEventLoop(this);
@@ -37,6 +37,7 @@ Fuck::Fuck(QWidget *parent)
 	m_PageVideoCollect = new PageVideoRecord(this);
 	m_PageVideoCollect->setGeometry(m_stackwidget->geometry());
 	m_stackwidget->addWidget(m_PageVideoCollect);
+	connect(m_PageVideoCollect, &PageVideoRecord::PageVideoRecord_exit, this, &Fuck::slot_exit_PageVideoCollect);
 
 	m_stackwidget->setCurrentWidget(sth_widg);
 
@@ -190,8 +191,13 @@ void Fuck::slot_switch_sth_widg()
 {
 	m_stackwidget->setCurrentWidget(sth_widg);
 }
-void Fuck::slot_switch_PageVideoCollect()
+void Fuck::slot_enter_PageVideoCollect()
 {
 	m_stackwidget->setCurrentWidget(m_PageVideoCollect);
 	m_PageVideoCollect->enter_PageVideoRecord("");
+}
+
+void Fuck::slot_exit_PageVideoCollect(const QString & examid)
+{
+	m_stackwidget->setCurrentWidget(sth_widg);
 }

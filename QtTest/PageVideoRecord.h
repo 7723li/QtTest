@@ -6,6 +6,7 @@
 @brief
 录制界面
 @property
+图像获取子线程(VideoCapture)
 录制界面工具箱(PageVideoCollect_kit)
 录制界面本体(PageVideoRecord)
 */
@@ -23,14 +24,103 @@
 #include <QPaintEvent>
 #include <QPainter>
 
-#include <thread>
-
 #include "externalFile/opencv/include/opencv2/opencv.hpp"
 
 #include "PromptBox.h"
 #include "VideoListWidget.h"
 #include "AVTCamera.h"
 #include "VideoPlayer_ffmpeg.h"
+
+class PageVideoRecord;
+
+class VideoSaver : public QThread
+{
+public:
+	VideoSaver(PageVideoRecord* p, cv::VideoWriter* w) :
+		QThread(nullptr), _w(w), _run(false)
+	{
+
+	}
+	~VideoSaver(){}
+
+	virtual void run() override;
+	void stop();
+
+private:
+	cv::VideoWriter* _w;
+	bool _run;
+};
+
+/*
+@brief
+录制界面的图像获取子线程
+负责从相机缓冲区处获取相机解析好的帧数据
+并且 保存视频
+*/
+class VideoCapture : private QThread
+{
+public:
+	/*
+	@note
+	父类必须为录制界面
+	*/
+	VideoCapture(PageVideoRecord* p);
+	~VideoCapture(){}
+
+	/*
+	@brief
+	开始获取图像
+	@param[1] c 录制界面当前正在使用的相机 camerabase*
+	@param[2] m 录制界面 ->已经分配好<- 的帧空间 cv::Mat*
+	@param[3] v 录制界面的VideoWriter cv::VideoWriter*
+	*/
+	bool begin_capture(
+		camerabase* c,
+		cv::Mat* m,
+		cv::VideoWriter* v);
+	/*
+	@brief
+	停止获取图像
+	*/
+	void stop_capture();
+
+	/*
+	@brief
+	尝试开始录制
+	*/
+	void begin_record();
+	/*
+	@brief
+	尝试停止录制
+	*/
+	void stop_record();
+
+	/*
+	@brief
+	图像获取状态(相机是否正在工作)
+	@note
+	该状态应该必须可以影响到是否可以开始录制
+	*/
+	bool capturing();
+	/*
+	@brief
+	图像录制状态(是否正在录制)
+	@note
+	该状态应该必须可以影响到是否可以退出录制界面
+	*/
+	bool recording();
+
+private:
+	virtual void run() override;
+
+private:
+	bool need_capture;
+	bool need_record;
+
+	camerabase* cam;
+	cv::Mat* mat;
+	cv::VideoWriter* writer;
+};
 
 /*
 @brief
@@ -39,7 +129,7 @@
 typedef struct PageVideoRecord_kit
 {
 public:
-	explicit PageVideoRecord_kit(QWidget* p);
+	explicit PageVideoRecord_kit(PageVideoRecord* p);
 	~PageVideoRecord_kit(){}
 
 public:
@@ -75,42 +165,42 @@ public slots:
 	外部进入录制界面接口
 	@param[1] examid 病例id QString
 	*/
-	void enter_PageVideoRecord(const QString & examid);		// 进入录制界面
+	void enter_PageVideoRecord(const QString & examid);
 	/*
 	@brief
 	外部退出录制界面接口
 	*/
-	void exit_PageVideoRecord();							// 退出录制界面
+	void exit_PageVideoRecord();
 
 private:
 	void clear_videodisplay();								// 清理图像显示区域
 	
-	void load_old_videos();									// 加载之前的录像 父视频
-	
-	void put_video_thumb(const QString & video_path, const QString & icon_path);	// 放置一个视频缩略图
-
-	bool open_camera();										// 打开相机
-	void close_camera();									// 关闭相机
+	void load_old_vidthumb();								// 加载之前的录像缩略图 父视频
+	void put_video_vidthumb(const QString & video_path, const QString & icon_path);	// 放置一个视频缩略图
+	void clear_all_vidthumb();								// 清理录像缩略图列表
 
 	void show_camera_openstatus(int openstatus);			// 提示相机打开状态
+	void show_camera_closestatus(int closestatus);			// 提示相机关闭状态
 	
 	void begin_capture();									// 开始捕捉影像(开启子线程)
 	void stop_capture();									// 停止捕捉影像(改变状态 关闭子线程)
-	void capture_thread();									// 子线程 从相机的缓冲区处获取新的一帧
 
 	bool get_useful_fps(double & fps);						// 获取一个有效(>0)的帧率 用于显示和录制
 
 	void begin_show_frame();								// 开始显示图像(启动定时器 运行间隔根据帧率决定)
 	void stop_show_frame();									// 停止显示图像(关闭定时器)
 
-	void begin_record();									// 开始录制
-	void stop_record();										// 停止录制(改变状态 保存视频)
+	void begin_record();									// 从下一轮影像捕捉循环开始录制
+	void stop_record();										// 从下一个影像捕捉循环停止录制
+	bool apply_record_msg();									// 创建视频头
+	void release_record_msg();								// 释放视频头(保存视频)
+	void begin_show_recordtime();							// 开始显示录制时间
+	void stop_show_recordtime();							// 停止显示录制时间
 
 private slots:
 	void slot_show_one_frame();								// 显示图像槽函数
 
 	void slot_begin_or_finish_record();						// 开始(结束)录制视频
-
 	void slot_timeout_video_duration_timer();				// 显示录像时长
 
 	void slot_replay_begin(QListWidgetItem* choosen_video);	// 重播录制的视频
@@ -122,23 +212,19 @@ signals:
 private:
 	PageVideoRecord_kit* m_PageVideoRecord_kit;
 
-	std::vector<QString> m_recored_videoname_list;			// 当前病例之前录制过的视频 包括最新录制完成的视频
+	using thumb_name = std::map<QListWidgetItem*, QString>;	// 由缩略图找到视频名称的数据结构
+	thumb_name m_map_video_thumb_2_name;					// 由缩略图找到视频名称
 
 	QString m_examid;										// 病例ID 由外部传入
 
 	QTimer* m_show_frame_timer;								// 显示图像定时器
 	QTimer* m_record_duration_timer;						// 用于记录录像时长的定时器
-	int m_record_duration_period;							// 录像时长定时器溢出次数 = 录像时长秒数
+	QTime m_record_duration_period;							// 录像时长 每次定时器溢出自加1
 
 	cv::Mat m_mat;											// 帧数据缓存
 	cv::VideoWriter m_VideoWriter;							// 将Mat写入到视频
+	VideoCapture* m_video_capture;							// 捕捉影像的子线程
 
 	camerabase* m_camerabase;								// 相机封装 通用相机接口
 	AVTCamera* m_avt_camera;								// AVT相机
-
-	bool m_is_need_capture;									// 是否需要(可以)捕捉影像
-	bool m_is_capturing;									// 是否正在捕捉影像
-
-	bool m_is_need_record;									// 是否需要(可以)录制视频
-	bool m_is_recording;									// 是否正在录制视频
 };

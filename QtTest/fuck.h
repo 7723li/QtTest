@@ -44,7 +44,8 @@ private slots:
 	void slot_finish_loop();
 	void slot_resolution_resize(int);
 	void slot_switch_sth_widg();
-	void slot_switch_PageVideoCollect();
+	void slot_enter_PageVideoCollect();
+	void slot_exit_PageVideoCollect(const QString & examid);
 };
 
 #endif // FUCK_H

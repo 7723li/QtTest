@@ -1,6 +1,6 @@
 #include "VideoPlayer_ffmpeg.h"
 
-VideoFrameCollector_ffmpeg::VideoFrameCollector_ffmpeg(QWidget* p):
+VideoFrameCollector_ffmpeg::VideoFrameCollector_ffmpeg(VideoPlayer_ffmpeg* p) :
 QThread(p)
 {
 	
@@ -145,7 +145,7 @@ void VideoFrameCollector_ffmpeg::run()
 
 
 
-VideoPlayer_ffmpeg_kit::VideoPlayer_ffmpeg_kit(QWidget* p) :
+VideoPlayer_ffmpeg_kit::VideoPlayer_ffmpeg_kit(VideoPlayer_ffmpeg* p) :
 	QWidget(p)
 {
 	frame_displayer = new QLabel(this);

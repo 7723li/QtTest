@@ -274,7 +274,7 @@ int AVTCamera::openCamera()
 			return camerabase::OpenFailed;
 		}
 	}
-	double target_framerate = 30.0;
+	double target_framerate = 60.0;
 	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionFrameRate", property_feature))
 	{
 		property_feature->GetValue(m_framerate);
