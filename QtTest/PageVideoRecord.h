@@ -102,6 +102,11 @@ private:
 	cv::VideoWriter* m_writer;
 };
 
+/*
+@brief
+录制界面的图像格式转换子线程
+Mat->QPixmap 并 缩放到显示窗口的尺寸
+*/
 class TransformPicture : public QThread
 {
 	Q_OBJECT
@@ -207,7 +212,7 @@ private:
 	void stop_show_recordtime();							// 停止显示录制时间
 
 private slots:
-	void slot_show_one_frame(QPixmap& _pixmap);		// 显示图像槽函数
+	void slot_show_one_frame(QPixmap& _pixmap);				// 显示图像槽函数
 
 	void slot_begin_or_finish_record();						// 开始(结束)录制视频
 
@@ -238,7 +243,7 @@ private:
 	QTime m_record_duration_period;							// 录像时长 每次定时器溢出自加1
 
 	QTimer* m_show_framerate_timer;							// 用于显示fps的定时器
-	bool m_show_framerate;									// 是否显示fps
+	bool m_is_show_framerate;								// 是否在帧显示器上显示fps
 	double m_framerate;										// 当前相机的fps
 
 	cv::Mat m_mat;											// 帧数据缓存

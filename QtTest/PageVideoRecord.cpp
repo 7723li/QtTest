@@ -219,7 +219,7 @@ PageVideoRecord::PageVideoRecord(QWidget* parent) :
 	m_show_framerate_timer->setTimerType(Qt::TimerType::PreciseTimer);
 	connect(m_show_framerate_timer, &QTimer::timeout, this, &PageVideoRecord::slot_show_framerate);
 
-	m_show_framerate = false;
+	m_is_show_framerate = false;
 	m_framerate = 0.0;
 
 	m_video_capture = new CameraCapture(this);
@@ -233,7 +233,7 @@ void PageVideoRecord::enter_PageVideoRecord(const QString & examid)
 	m_examid = examid;
 	m_video_path = g_test_videoname;
 	m_video_thumb_path = g_test_picname;
-	m_show_framerate = false;
+	m_is_show_framerate = false;
 	m_framerate = 0;
 
 	load_old_vidthumb();						// 加载之前的视频缩略图
@@ -284,10 +284,15 @@ void PageVideoRecord::exit_PageVideoRecord()
 
 void PageVideoRecord::keyPressEvent(QKeyEvent* e)
 {
-	if (Qt::Key_V == e->key() && e->modifiers() == Qt::ControlModifier)
+	if (e->modifiers() == Qt::ControlModifier && Qt::Key_V == e->key())
 	{
 		e->accept();
-		m_show_framerate = true;
+		m_is_show_framerate = true;
+	}
+	else if (e->modifiers() == Qt::ControlModifier && Qt::Key_B == e->key())
+	{
+		m_is_show_framerate = false;
+		e->accept();
 	}
 	else
 	{
@@ -433,7 +438,7 @@ void PageVideoRecord::stop_show_frame()
 }
 void PageVideoRecord::slot_show_one_frame(QPixmap& _pixmap)
 {
-	if (m_show_framerate)
+	if (m_is_show_framerate)
 	{
 		QPainter painter(&_pixmap);
 		painter.setPen(Qt::blue);
