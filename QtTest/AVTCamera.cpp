@@ -287,17 +287,16 @@ int AVTCamera::openCamera()
 
 	/* lzx 20200508 根据VimbaViewer源码提供的标准(大嘘...)启动方式 */
 	static const int buffer_size = 8;							// 8
-	std::vector<FramePtr> AVT_framebuffer(buffer_size);
-	AVT_framebuffer.resize(buffer_size);
+	m_AVT_framebuffer.resize(buffer_size);
 	for (int i = 0; i < buffer_size; ++i)
 	{
-		AVT_framebuffer[i] = FramePtr(new Frame(payload));		// 申请缓冲空间
+		m_AVT_framebuffer[i] = FramePtr(new Frame(payload));		// 申请缓冲空间
 	}
 	for (int i = 0; i < buffer_size; ++i)
 	{
-		if (VmbErrorSuccess != AVT_framebuffer[i]->RegisterObserver(m_FrameObserver)// 注册观察者
-			|| VmbErrorSuccess != m_using_camera->AnnounceFrame(AVT_framebuffer[i])	// 声明相机之后需要用到的缓存空间
-			|| VmbErrorSuccess != m_using_camera->QueueFrame(AVT_framebuffer[i]))
+		if (VmbErrorSuccess != m_AVT_framebuffer[i]->RegisterObserver(m_FrameObserver)// 注册观察者
+			|| VmbErrorSuccess != m_using_camera->AnnounceFrame(m_AVT_framebuffer[i])	// 声明相机之后需要用到的缓存空间
+			|| VmbErrorSuccess != m_using_camera->QueueFrame(m_AVT_framebuffer[i]))
 		{
 			return camerabase::OpenFailed;
 		}
@@ -378,6 +377,13 @@ int AVTCamera::closeCamera()
 		return camerabase::OpenFailed;
 	}
 
+	for (FramePtr& buffer : m_AVT_framebuffer)
+	{
+		buffer->UnregisterObserver();								// 注销观察者
+		SP_RESET(buffer);											// 减少智能指针技术引用技术 析构
+	}
+	m_AVT_framebuffer.clear();
+
 	if (!m_framedata_queue.empty())									// 清除数据队列
 	{
 		std::queue<uchar*> to_clear_cache;
@@ -445,6 +451,4 @@ void AVTCamera::slot_cnt_framerate()
 	int cnt = m_frame_obsr_cnt;
 	m_framerate = cnt - m_save_frame_obsr_cnt;
 	m_save_frame_obsr_cnt = cnt;
-
-	qDebug() << m_framerate;
 }

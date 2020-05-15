@@ -1,128 +1,141 @@
-#include "PageVideoRecord.h"
+ï»¿#include "PageVideoRecord.h"
 
 const QString g_test_picname = "./test.jpg";
 const QString g_test_videoname = "./test.avi";
+static QMutex g_mutex;
 
-static const std::map<int, QImage::Format> g_s_mat_2_image = {
-	{ CV_8UC1, QImage::Format_Grayscale8 },
-	{ CV_8UC3, QImage::Format_RGB888 },
-	{ CV_8UC4, QImage::Format_RGB32 },
-};
-
-VideoCapture::VideoCapture(PageVideoRecord* p) : 
-QThread(p), need_capture(false), need_record(false),
-cam(nullptr), mat(nullptr), writer(nullptr)
+CameraCapture::CameraCapture(PageVideoRecord* p) : 
+QThread(p), m_need_capture(false), m_need_record(false),
+m_cam(nullptr), m_mat(nullptr), m_writer(nullptr)
 {
 
 }
-bool VideoCapture::begin_capture(camerabase* c, cv::Mat* m, cv::VideoWriter* v)
+bool CameraCapture::begin_capture(camerabase* c, cv::Mat* m, cv::VideoWriter* v)
 {
 	if (!(c && m && v))
 		return false;
 
-	cam = c;
-	mat = m;
-	writer = v;
+	m_cam = c;
+	m_mat = m;
+	m_writer = v;
 
-	need_capture = true;
+	m_need_capture = true;
 
 	return true;
 }
-void VideoCapture::stop_capture()
+void CameraCapture::stop_capture()
 {
-	need_capture = false;
+	m_need_capture = false;
 	this->wait();
 }
-void VideoCapture::begin_record()
+void CameraCapture::begin_record()
 {
-	need_record = true;
+	m_need_record = true;
 }
-void VideoCapture::stop_record()
+void CameraCapture::stop_record()
 {
-	need_record = false;
+	m_need_record = false;
 }
-bool VideoCapture::capturing()
+bool CameraCapture::capturing()
 {
-	return (need_capture || this->isRunning());
+	return (m_need_capture || this->isRunning());
 }
-bool VideoCapture::recording()
+bool CameraCapture::recording()
 {
-	if (nullptr == writer)
+	if (nullptr == m_writer)
 		return false;
 	else
-		return (need_record && writer->isOpened() && this->isRunning());
+		return (m_need_record && m_writer->isOpened() && this->isRunning());
 }
-void VideoCapture::run()
+void CameraCapture::run()
 {
 	while (true)
 	{		
-		if (false == need_capture)
+		if (false == m_need_capture)
 		{
 			break;
 		}
 
-		bool is_writer_open = writer->isOpened();
-		bool is_get_frame_success = cam->get_one_frame(*mat);
+		g_mutex.lock();
+		bool is_get_frame_success = m_cam->get_one_frame(*m_mat);
+		g_mutex.unlock();
+
 		if (is_get_frame_success)
 		{
-			if (need_record)
+			if (m_need_record)
 			{
-				if (is_writer_open)
-				{
-					writer->write(*mat);
-				}
+				m_writer->write(*m_mat);
 			}
 			else
 			{
-				if (is_writer_open)
-				{
-					writer->release();
-				}
-
+				m_writer->release();
 			}
+		}
+		else
+		{
+			::Sleep(3);
 		}
 	}
 }
 
 TransformPicture::TransformPicture(PageVideoRecord* p):
-QThread(p), _mat(nullptr), _run(false)
+QThread(p), m_run(false)
 {
 
 }
-bool TransformPicture::begin_transform(cv::Mat* mat, QSize show_size, double sleep_time)
+bool TransformPicture::begin_transform(cv::Mat* mat, QSize qs, double st)
 {
-	if (nullptr == mat || show_size.width() == 0 || show_size.height() == 0)
+	if (nullptr == mat || mat->empty() || qs.width() <= 0 || qs.height() <= 0)
 	{
 		return false;
 	}
 
-	_mat = mat;
-	_show_size = show_size;
-	_sleep_time = sleep_time;
-	_run = true;
+	m_mat = mat;
+	m_show_size = qs;
+	m_sleep_time = st;
+	m_run = true;
+
+	switch (m_mat->type())
+	{
+	case CV_8UC1:
+		m_fmt = QImage::Format_Grayscale8;
+		break;
+	case CV_8UC3:
+		m_fmt = QImage::Format_RGB888;
+		break;
+	case CV_8UC4:
+		m_fmt = QImage::Format_RGB32;
+		break;
+	default:
+		m_fmt = QImage::Format_Grayscale8;
+		break;
+	}
 
 	return true;
 }
 void TransformPicture::stop_transform()
 {
-	_run = false;
+	m_run = false;
 	this->wait();
 }
 void TransformPicture::run()
 {
 	while (true)
 	{
-		if (false == _run)
+		if (false == m_run)
 		{
 			break;
 		}
 
-		auto img_fmt_iter = g_s_mat_2_image.find(_mat->type());
-		QImage::Format img_fmt = (img_fmt_iter != g_s_mat_2_image.end() ? img_fmt_iter->second : QImage::Format_Grayscale8);
-		const QImage& image = QImage(_mat->data, _mat->cols, _mat->rows, img_fmt);
+		g_mutex.lock();
+		QImage& image = QImage(m_mat->data, m_mat->cols, m_mat->rows, m_fmt);
+		g_mutex.unlock();
 
-		emit show_one_frame(QPixmap::fromImage(image).scaled(_show_size));
-		::Sleep(_sleep_time);
+		QPixmap& pix = QPixmap::fromImage(image);
+		pix = pix.scaled(m_show_size);
+		emit show_one_frame(pix);
+
+		::Sleep(m_sleep_time);
 	}
 }
 
@@ -132,13 +145,13 @@ PageVideoRecord_kit::PageVideoRecord_kit(PageVideoRecord* p)
 	frame_displayer->setGeometry(10, 10, 1186, 885);
 
 	bed_num_label = new QLabel(p);
-	bed_num_label->setText(QStringLiteral("ÄãÊÇÉµ±Æ"));
+	bed_num_label->setText(QStringLiteral("ä½ æ˜¯å‚»é€¼"));
 	bed_num_label->setAlignment(Qt::AlignCenter);
 	bed_num_label->setGeometry(1250, 10, 100, 40);
 	bed_num_label->setStyleSheet("background-color: rgb(251,251,251);border:2px solid #242424;border-radius:5px;");
 
 	patient_name_label = new QLabel(p);
-	patient_name_label->setText(QStringLiteral("ÄãÊÇÉµŒÅ"));
+	patient_name_label->setText(QStringLiteral("ä½ æ˜¯å‚»å±Œ"));
 	patient_name_label->setAlignment(Qt::AlignCenter);
 	patient_name_label->setGeometry(1400, 10, 100, 40);
 	patient_name_label->setStyleSheet("background-color: rgb(251,251,251);border:2px solid #242424;border-radius:5px;");
@@ -146,20 +159,20 @@ PageVideoRecord_kit::PageVideoRecord_kit(PageVideoRecord* p)
 	video_time_display = new QLabel(p);
 	video_time_display->setGeometry(1400, 300, 100, 30);
 	video_time_display->setStyleSheet("background-color: rgb(251,251,251);");
-	video_time_display->hide();	// ³õÊ¼Ä¬ÈÏ²»ÏÔÊ¾
+	video_time_display->hide();	// åˆå§‹é»˜è®¤ä¸æ˜¾ç¤º
 
 	record_btn = new QPushButton(p);
 	//record_btn->setObjectName("pushButtonVideo");
 	record_btn->setStyleSheet("background-color: rgb(0,187,163);color: #ffffff;");
 	record_btn->setIcon(QIcon("./Resources/icon/PauseVideo2.png"));
-	record_btn->setText(QStringLiteral("Â¼Ïñ"));
+	record_btn->setText(QStringLiteral("å½•åƒ"));
 	record_btn->setGeometry(1500, 300, 200, 80);
 
 	exit_btn = new QPushButton(p);
 	//exit_btn->setObjectName("pushButtonVideo");
 	exit_btn->setStyleSheet("background-color: rgb(0,187,163);color: #ffffff;");
 	exit_btn->setIcon(QIcon("./Resources/icon/PauseVideo2.png"));
-	exit_btn->setText(QStringLiteral("½áÊø±¾´²¼ì²é"));
+	exit_btn->setText(QStringLiteral("ç»“æŸæœ¬åºŠæ£€æŸ¥"));
 	exit_btn->setGeometry(1600, 500, 150, 30);
 
 	video_list_background = new QWidget(p);
@@ -176,12 +189,13 @@ PageVideoRecord_kit::PageVideoRecord_kit(PageVideoRecord* p)
 	video_list->setSpacing(20);
 
 	videoplayer = new VideoPlayer_ffmpeg(p);
-	videoplayer->hide();								// Ä¬ÈÏÒş²Ø
+	videoplayer->hide();								// é»˜è®¤éšè—
 	videoplayer->setGeometry(100, 100, 1000, 1000);
 }
 
 PageVideoRecord::PageVideoRecord(QWidget* parent) :
-	QWidget(parent)
+	QWidget(parent),
+	m_ready_record_hint(QStringLiteral("å‡†å¤‡å½•åƒä¸­.."))
 {
 	this->setStyleSheet("background-color: rgb(251,251,251);");
 	//this->setObjectName("widgetBottomShelter");
@@ -201,62 +215,89 @@ PageVideoRecord::PageVideoRecord(QWidget* parent) :
 
 	m_record_duration_period = QTime(0, 0, 0, 0);
 
-	m_video_capture = new VideoCapture(this);
+	m_show_framerate_timer = new QTimer(this);
+	m_show_framerate_timer->setTimerType(Qt::TimerType::PreciseTimer);
+	connect(m_show_framerate_timer, &QTimer::timeout, this, &PageVideoRecord::slot_show_framerate);
+
+	m_show_framerate = false;
+	m_framerate = 0.0;
+
+	m_video_capture = new CameraCapture(this);
 
 	m_avt_camera = new AVTCamera;
-	m_camerabase = m_avt_camera;	// Ä¬ÈÏÊ¹ÓÃAVTÉãÏñÍ·
+	m_camerabase = m_avt_camera;	// é»˜è®¤ä½¿ç”¨AVTæ‘„åƒå¤´
 }
 
 void PageVideoRecord::enter_PageVideoRecord(const QString & examid)
 {
 	m_examid = examid;
+	m_video_path = g_test_videoname;
+	m_video_thumb_path = g_test_picname;
+	m_show_framerate = false;
+	m_framerate = 0;
 
-	load_old_vidthumb();						// ¼ÓÔØÖ®Ç°µÄÊÓÆµËõÂÔÍ¼
-	clear_videodisplay();						// ÇåÀíÏÔÊ¾ÆÁ
+	load_old_vidthumb();						// åŠ è½½ä¹‹å‰çš„è§†é¢‘ç¼©ç•¥å›¾
+	clear_videodisplay();						// æ¸…ç†æ˜¾ç¤ºå±
 	int sta = -1;
-	sta = m_camerabase->openCamera();			// ´ò¿ªÏà»ú
-	show_camera_openstatus(sta);				// ÌáÊ¾Ïà»ú´ò¿ª×´Ì¬
-	if (sta == camerabase::OpenSuccess)			// ´ò¿ª³É¹¦
+	sta = m_camerabase->openCamera();			// æ‰“å¼€ç›¸æœº
+	show_camera_openstatus(sta);				// æç¤ºç›¸æœºæ‰“å¼€çŠ¶æ€
+	if (sta == camerabase::OpenSuccess)			// æ‰“å¼€æˆåŠŸ
 	{
 		int w = 0, h = 0;
 		m_camerabase->get_frame_wh(w, h);
-		m_mat = cv::Mat::zeros(w, h, CV_8UC1);	// ·ÖÅäÖ¡¿Õ¼ä´óĞ¡
+		m_mat = cv::Mat::zeros(w, h, CV_8UC1);	// åˆ†é…å¸§ç©ºé—´å¤§å°
 
-		begin_capture();						// ¿ªÊ¼²¶×½Í¼Ïñ
-		begin_show_frame();						// ¿ªÊ¼ÏÔÊ¾Í¼Ïñ
+		begin_capture();						// å¼€å¯æ•æ‰çº¿ç¨‹ å¼€å§‹æ•æ‰å›¾åƒ
+		begin_collect_fps();					// å¼€å§‹æ”¶é›†fps
+		begin_show_frame();						// å¼€å¯è½¬æ¢çº¿ç¨‹ å¼€å§‹æ˜¾ç¤ºå›¾åƒ
 	}
-	else										// ÉãÏñÍ·´ò¿ªÒì³£
+	else										// æ‘„åƒå¤´æ‰“å¼€å¼‚å¸¸
 	{
-		stop_show_frame();						// È¡ÏûÏÔÊ¾
-		stop_capture();							// È¡Ïû²¶×½
-		sta = m_camerabase->closeCamera();		// ¹Ø±ÕÉãÏñÍ·
-		show_camera_closestatus(sta);			// ÌáÊ¾¹Ø±Õ×´Ì¬
+		stop_capture();							// å…³é—­æ•æ‰çº¿ç¨‹ å–æ¶ˆæ•æ‰
+		stop_show_frame();						// å…³é—­å›¾åƒè½¬æ¢çº¿ç¨‹ å–æ¶ˆæ˜¾ç¤º
+		sta = m_camerabase->closeCamera();		// å…³é—­æ‘„åƒå¤´
+		show_camera_closestatus(sta);			// æç¤ºå…³é—­çŠ¶æ€
+		stop_collect_fps();						// åœæ­¢é‡‡é›†fps
 	}
 }
 void PageVideoRecord::exit_PageVideoRecord()
 {
-	if (m_video_capture->recording())			// Â¼ÏñÇë²»ÒªËæ±ã´¦ÖÃ ²Î¿¼³Â¹ÚÏ£ÀÏÊ¦
+	if (m_video_capture->recording())			// å½•åƒè¯·ä¸è¦éšä¾¿å¤„ç½® å‚è€ƒé™ˆå† å¸Œè€å¸ˆ
 	{
 		PromptBoxInst()->msgbox_go(
 			PromptBox_msgtype::Warning,
 			PromptBox_btntype::None,
-			QStringLiteral("ÇëÏÈÍ£Ö¹Â¼ÖÆ"),
+			QStringLiteral("è¯·å…ˆåœæ­¢å½•åˆ¶"),
 			1000,
 			true);
 		return;
 	}
 
-	stop_show_frame();						// Í£Ö¹ÏÔÊ¾
-	stop_capture();							// Í£Ö¹²¶×½Ó°Ïñ
-	m_camerabase->closeCamera();			// ¹Ø±ÕÉãÏñÍ·
-	clear_all_vidthumb();					// ÇåÀíËõÂÔÍ¼
+	stop_collect_fps();							// åœæ­¢é‡‡é›†fps
+	stop_capture();								// å…³é—­æ•æ‰çº¿ç¨‹ å–æ¶ˆæ•æ‰
+	stop_show_frame();							// å…³é—­å›¾åƒè½¬æ¢çº¿ç¨‹ å–æ¶ˆæ˜¾ç¤º
+	m_camerabase->closeCamera();				// å…³é—­æ‘„åƒå¤´
+	clear_all_vidthumb();						// æ¸…ç†ç¼©ç•¥å›¾
 
-	emit PageVideoRecord_exit(m_examid);	// ·¢ÉäÒ»¸ö±¾Ò³Ãæ¹Ø±ÕµÄĞÅºÅ
+	emit PageVideoRecord_exit(m_examid);		// å‘å°„ä¸€ä¸ªæœ¬é¡µé¢å…³é—­çš„ä¿¡å·
+}
+
+void PageVideoRecord::keyPressEvent(QKeyEvent* e)
+{
+	if (Qt::Key_V == e->key() && e->modifiers() == Qt::ControlModifier)
+	{
+		e->accept();
+		m_show_framerate = true;
+	}
+	else
+	{
+		e->ignore();
+	}
 }
 
 void PageVideoRecord::clear_videodisplay()
 {
-	// lzx 20200430 ½«Ò»ÕÅdeep dark fantasy(´¿ºÚ)µÄÍ¼Æ¬²åÈëµ½ÊÓÆµÏÔÊ¾´°¿Ú ×÷Îª³õÊ¼¡¢Ê§°Ü¡¢´íÎóµÄÏÔÊ¾±³¾°
+	// lzx 20200430 å°†ä¸€å¼ deep dark fantasy(çº¯é»‘)çš„å›¾ç‰‡æ’å…¥åˆ°è§†é¢‘æ˜¾ç¤ºçª—å£ ä½œä¸ºåˆå§‹ã€å¤±è´¥ã€é”™è¯¯çš„æ˜¾ç¤ºèƒŒæ™¯
 	QSize dispalyer_size = m_PageVideoRecord_kit->frame_displayer->size();
 	static QImage image(dispalyer_size, QImage::Format_Grayscale8);
 	if (image.size() != dispalyer_size)
@@ -269,7 +310,7 @@ void PageVideoRecord::clear_videodisplay()
 
 void PageVideoRecord::load_old_vidthumb()
 {
-	// todo lzx ´ÓÊı¾İ¿âÖĞ¼ÓÔØ
+	// todo lzx ä»æ•°æ®åº“ä¸­åŠ è½½
 	//DB::LOAD_FROM_EXAMID(m_examid);
 
 	int thumb_num = m_PageVideoRecord_kit->video_list->count();
@@ -279,19 +320,21 @@ void PageVideoRecord::load_old_vidthumb()
 	std::vector<int> index({ 0, 1, 2 });
 	for (int i : index)
 	{
-		put_video_vidthumb(g_test_videoname, g_test_picname);
+		const QString& old_video_name = g_test_videoname;
+		const QString& old_video_thm_name = g_test_videoname;
+		put_video_vidthumb(old_video_name, old_video_thm_name);
 	}
 }
 void PageVideoRecord::put_video_vidthumb(const QString & video_path, const QString & icon_path)
 {
-	// ·ÅÖÃËõÂÔÍ¼
+	// æ”¾ç½®ç¼©ç•¥å›¾
 	QListWidgetItem* new_video_thumbnail = new QListWidgetItem(m_PageVideoRecord_kit->video_list);
 	new_video_thumbnail->setIcon(QIcon(QPixmap(icon_path)));
 	new_video_thumbnail->setText('T' + QString::number(m_PageVideoRecord_kit->video_list->count()));
 	new_video_thumbnail->setTextAlignment(Qt::AlignCenter);
 	m_PageVideoRecord_kit->video_list->addItem(new_video_thumbnail);
 
-	// ¼ÇÂ¼Â¼ÖÆµÄÊÓÆµÃû³Æ
+	// è®°å½•å½•åˆ¶çš„è§†é¢‘åç§°
 	m_map_video_thumb_2_name[new_video_thumbnail] = video_path;
 }
 void PageVideoRecord::clear_all_vidthumb()
@@ -318,25 +361,25 @@ void PageVideoRecord::show_camera_openstatus(int openstatus)
 		if (connected)
 		{
 			PromptBoxInst(m_PageVideoRecord_kit->frame_displayer)->msgbox_go(
-				PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("Ïà»ú´ò¿ª³É¹¦"), 2000, true);
+				PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("ç›¸æœºæ‰“å¼€æˆåŠŸ"), 2000, true);
 		}
 		else
 		{
 			PromptBoxInst(m_PageVideoRecord_kit->frame_displayer)->msgbox_go(
-				PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("Ïà»ú´ò¿ª³É¹¦,µ«Êı¾İ´«ÊäÊ§°Ü"), 2000, true);
+				PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("ç›¸æœºæ‰“å¼€æˆåŠŸ,ä½†æ•°æ®ä¼ è¾“å¤±è´¥"), 2000, true);
 		}
 	}
 	else if (camerabase::OpenStatus::OpenFailed == openstatus)
 	{
 		PromptBoxInst(m_PageVideoRecord_kit->frame_displayer)->msgbox_go(
 			PromptBox_msgtype::Warning, PromptBox_btntype::None,
-			QStringLiteral("Ïà»ú´ò¿ªÊ§°Ü\nÇë³¢ÊÔ¼ì²éÁ¬½Ó²¢ÖØĞÂ²åÈë"), 2000, true);
+			QStringLiteral("ç›¸æœºæ‰“å¼€å¤±è´¥\nè¯·å°è¯•æ£€æŸ¥è¿æ¥å¹¶é‡æ–°æ’å…¥"), 2000, true);
 	}
 	else if (camerabase::OpenStatus::NoCameras == openstatus)
 	{
 		PromptBoxInst(m_PageVideoRecord_kit->frame_displayer)->msgbox_go(
 			PromptBox_msgtype::Warning, PromptBox_btntype::None,
-			QStringLiteral("Ã»ÓĞÕÒµ½Ïà»ú\nÇë³¢ÊÔ¼ì²éÁ¬½Ó²¢ÖØĞÂ²åÈë"), 2000, true);
+			QStringLiteral("æ²¡æœ‰æ‰¾åˆ°ç›¸æœº\nè¯·å°è¯•æ£€æŸ¥è¿æ¥å¹¶é‡æ–°æ’å…¥"), 2000, true);
 	}
 }
 void PageVideoRecord::show_camera_closestatus(int closestatus)
@@ -345,7 +388,7 @@ void PageVideoRecord::show_camera_closestatus(int closestatus)
 	{
 		PromptBoxInst()->msgbox_go(PromptBox_msgtype::Failed,
 			PromptBox_btntype::None,
-			QStringLiteral("¹Ø±ÕÊ§°Ü£¬Çë³¢ÊÔ°Î²å\nÒÔÖØÆôÉãÏñÍ·"),
+			QStringLiteral("å…³é—­å¤±è´¥ï¼Œè¯·å°è¯•æ‹”æ’\nä»¥é‡å¯æ‘„åƒå¤´"),
 			1000,
 			true);
 	}
@@ -365,36 +408,19 @@ void PageVideoRecord::stop_capture()
 	while (m_video_capture->capturing());
 }
 
-bool PageVideoRecord::get_useful_fps(double & fps)
+void PageVideoRecord::begin_collect_fps()
 {
-	// »ñÈ¡µÄÖ¡ÂÊ<=0 ÓĞ¿ÉÄÜÊÇÒòÎªÏà»ú¹ÒµôÁË»òÕßÏà»ú¸Õ¸Õ¿ªÆô µÈÁ½ÃëÔÙ¿´¿´
-	int retry_times = 2;
-	fps = m_camerabase->get_framerate();
-	while (fps <= 0 && retry_times--)
-	{
-		::Sleep(1000);
-		fps = m_camerabase->get_framerate();
-	}
-
-	return (fps > 0);
+	m_show_framerate_timer->start(1000);
+}
+void PageVideoRecord::stop_collect_fps()
+{
+	m_show_framerate_timer->stop();
 }
 
 void PageVideoRecord::begin_show_frame()
-{	
-	double fps = 0;
-	if (!get_useful_fps(fps))
-	{
-		PromptBoxInst()->msgbox_go(
-			PromptBox_msgtype::Warning,
-			PromptBox_btntype::None,
-			QStringLiteral("ÉãÏñÍ·ËÆºõ³öÁËĞ©ÎÊÌâ\nÇë³¢ÊÔ°Î³öºóÖØĞÂ²åÈë"),
-			1000,
-			true
-			);
-		return;
-	}
+{
 	QSize show_size = m_PageVideoRecord_kit->frame_displayer->size();
-	double sleep_time = (double)1000 / fps;
+	double sleep_time = (double)1000 / 30;
 	bool succ = m_tranpicthr->begin_transform(&m_mat, show_size, sleep_time);
 	if (succ)
 	{
@@ -405,19 +431,26 @@ void PageVideoRecord::stop_show_frame()
 {
 	m_tranpicthr->stop_transform();
 }
-void PageVideoRecord::slot_show_one_frame(const QPixmap& _pixmap)
+void PageVideoRecord::slot_show_one_frame(QPixmap& _pixmap)
 {
+	if (m_show_framerate)
+	{
+		QPainter painter(&_pixmap);
+		painter.setPen(Qt::blue);
+		painter.drawText(QRect(0, 0, 20, 5), QString::number(m_framerate));
+	}
+
 	m_PageVideoRecord_kit->frame_displayer->setPixmap(_pixmap);
 }
 
 void PageVideoRecord::begin_record()
 {
-	// ¸ü¸ÄÊÓÆµ²¶×½Ïß³ÌÖĞµÄÂ¼ÖÆ×´Ì¬ÎªTRUE ´ÓÏÂÒ»ÂÖ²¶×½¿ªÊ¼Â¼ÖÆ
+	// æ›´æ”¹è§†é¢‘æ•æ‰çº¿ç¨‹ä¸­çš„å½•åˆ¶çŠ¶æ€ä¸ºTRUE ä»ä¸‹ä¸€è½®æ•æ‰å¼€å§‹å½•åˆ¶
 	m_video_capture->begin_record();
 }
 void PageVideoRecord::stop_record()
 {
-	// ¸ü¸ÄÊÓÆµ²¶×½Ïß³ÌÖĞµÄÂ¼ÖÆ×´Ì¬ÎªFALSE ´ÓÏÂÒ»ÂÖ²¶×½Í£Ö¹Â¼ÖÆ ²¢ÊÍ·ÅÊÓÆµÍ·
+	// æ›´æ”¹è§†é¢‘æ•æ‰çº¿ç¨‹ä¸­çš„å½•åˆ¶çŠ¶æ€ä¸ºFALSE ä»ä¸‹ä¸€è½®æ•æ‰åœæ­¢å½•åˆ¶ å¹¶é‡Šæ”¾è§†é¢‘å¤´
 	m_video_capture->stop_record();
 	while (m_video_capture->recording());
 }
@@ -426,80 +459,79 @@ void PageVideoRecord::slot_begin_or_finish_record()
 	bool captur_ing = m_video_capture->capturing();
 	if (!captur_ing)
 	{
-		PromptBoxInst(this)->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("Ã»ÓĞÉãÏñÍ·ÕıÔÚÔËĞĞ"), 2000, true);
+		PromptBoxInst(this)->msgbox_go(PromptBox_msgtype::Warning, PromptBox_btntype::None, QStringLiteral("æ²¡æœ‰æ‘„åƒå¤´æ­£åœ¨è¿è¡Œ"), 2000, true);
 		return;
 	}
 
 	bool record_ing = m_video_capture->recording();
 	if (!record_ing)
 	{
-		bool init_header = apply_record_msg();					// ´´½¨ÊÓÆµÍ· Â¼ÖÆ¹Ø¼ü Ã»ÓĞ±Ø¹Ò
+		bool init_header = apply_record_msg();					// åˆ›å»ºè§†é¢‘å¤´ å½•åˆ¶å…³é”® æ²¡æœ‰å¿…æŒ‚
 		if (!init_header)
 		{
 			return;
 		}
-		m_PageVideoRecord_kit->video_list->setEnabled(false);	// Â¼ÖÆÆÚ¼ä²»¿É»Ø²¥
-		begin_show_recordtime();								// ¿ªÊ¼ÏÔÊ¾Â¼ÖÆÊ±¼ä
-		begin_record();											// Ã»ÔÚÂ¼Ïñ×´Ì¬ ¿ªÊ¼Â¼Ïñ
+		m_PageVideoRecord_kit->video_list->setEnabled(false);	// å½•åˆ¶æœŸé—´ä¸å¯å›æ’­
+		begin_show_recordtime();								// å¼€å§‹æ˜¾ç¤ºå½•åˆ¶æ—¶é—´
+		begin_record();											// æ²¡åœ¨å½•åƒçŠ¶æ€ å¼€å§‹å½•åƒ
 	}
 	else
 	{
-		stop_record();											// Í£Ö¹Â¼Ïñ ²¢ ÔÚÏÂÒ»¸öÑ­»·ÊÍ·ÅÊÓÆµÍ·
-		stop_show_recordtime();									// Òş²ØÂ¼ÖÆÊ±¼ä
-		put_video_vidthumb(g_test_videoname, g_test_picname);	// ·ÅÖÃÒ»¸öËõÂÔÍ¼
-		m_PageVideoRecord_kit->video_list->setEnabled(true);	// Â¼ÖÆÍê±Ï ¿ÉÒÔ»Ø²¥
+		stop_record();											// åœæ­¢å½•åƒ å¹¶ åœ¨ä¸‹ä¸€ä¸ªå¾ªç¯é‡Šæ”¾è§†é¢‘å¤´
+		stop_show_recordtime();									// éšè—å½•åˆ¶æ—¶é—´
+		put_video_vidthumb(m_video_path, m_video_thumb_path);	// æ”¾ç½®ä¸€ä¸ªç¼©ç•¥å›¾
+		m_PageVideoRecord_kit->video_list->setEnabled(true);	// å½•åˆ¶å®Œæ¯• å¯ä»¥å›æ’­
 	}
 }
 
 bool PageVideoRecord::apply_record_msg()
 {
-	double fps = 0;											// Â¼ÖÆÖ¡ÂÊ
-	if (!get_useful_fps(fps))
-	{
-		PromptBoxInst()->msgbox_go(
-			PromptBox_msgtype::Warning,
-			PromptBox_btntype::None,
-			QStringLiteral("ÉãÏñÍ·ËÆºõ³öÁËĞ©ÎÊÌâ\nÇë³¢ÊÔ°Î³öºóÖØĞÂ²åÈë"),
-			1000,
-			true
-			);
-		return false;
-	}
-
-	int w = 0, h = 0;										// ÊÓÆµ³¤¿í
+	while (m_framerate <= 0);
+	int w = 0, h = 0;									// è§†é¢‘é•¿å®½
 	m_camerabase->get_frame_wh(w, h);
 
-	m_VideoWriter.open(										// ´´½¨ÊÓÆµÍ·
-		g_test_videoname.toStdString().c_str(),
+	if (m_VideoWriter.isOpened())
+	{
+		m_VideoWriter.release();
+	}
+
+	bool open_succ = m_VideoWriter.open(				// åˆ›å»ºè§†é¢‘å¤´
+		m_video_path.toStdString().c_str(),
 		CV_FOURCC('M', 'J', 'P', 'G'),
-		fps, cv::Size(w, h), false
+		m_framerate, cv::Size(w, h), false
 		);
 
-	return m_VideoWriter.isOpened();
+	return open_succ;
 }
 
 void PageVideoRecord::begin_show_recordtime()
 {
-	m_record_duration_period = QTime(0, 0, 0, 0);			// Â¼ÖÆÏÔÊ¾µÄÊ±³¤Ê±·ÖÃë³õÊ¼»¯³£ÎªÈ«0
-	m_PageVideoRecord_kit->video_time_display->setText(m_record_duration_period.toString("hh:mm:ss"));
+	m_record_duration_period = QTime(0, 0, 0, 0);				// å½•åˆ¶æ˜¾ç¤ºçš„æ—¶é•¿æ—¶åˆ†ç§’åˆå§‹åŒ–å¸¸ä¸ºå…¨0
+	m_PageVideoRecord_kit->video_time_display->setText(m_ready_record_hint);
 	m_PageVideoRecord_kit->video_time_display->show();
-	m_record_duration_timer->start(1000);					// ¿ªÊ¼¼ÇÂ¼Â¼ÖÆÊ±¼ä
+	m_record_duration_timer->start(1000);						// å¼€å§‹è®°å½•å½•åˆ¶æ—¶é—´
 }
 void PageVideoRecord::stop_show_recordtime()
 {
-	m_record_duration_timer->stop();						// Í£Ö¹¼ÆÊ±
-	m_PageVideoRecord_kit->video_time_display->hide();		// Í£Ö¹ÏÔÊ¾Ê±¼ä
+	m_record_duration_timer->stop();							// åœæ­¢è®¡æ—¶
+	m_PageVideoRecord_kit->video_time_display->hide();			// åœæ­¢æ˜¾ç¤ºæ—¶é—´
 }
 void PageVideoRecord::slot_show_recordtime()
 {
-	m_record_duration_period = m_record_duration_period.addSecs(1);
-	m_PageVideoRecord_kit->video_time_display->setText(m_record_duration_period.toString("hh:mm:ss"));
-
-	// ×î³¤Ö»¿ÉÒÔÂ¼Ò»¸öÖÓ
+	// æœ€é•¿åªå¯ä»¥å½•ä¸€ä¸ªé’Ÿ
 	if (m_record_duration_period.hour() >= 1)
 	{
-		stop_record();
+		return stop_record();
 	}
+
+	m_PageVideoRecord_kit->video_time_display->setText(m_record_duration_period.toString("hh:mm:ss"));
+	m_record_duration_period = m_record_duration_period.addSecs(1);
+}
+
+void PageVideoRecord::slot_show_framerate()
+{
+	m_framerate = m_camerabase->get_framerate();
+	qDebug() << m_framerate;
 }
 
 void PageVideoRecord::slot_replay_begin(QListWidgetItem* choosen_video)
@@ -512,16 +544,14 @@ void PageVideoRecord::slot_replay_begin(QListWidgetItem* choosen_video)
 	{
 		PromptBoxInst()->msgbox_go(PromptBox_msgtype::Warning,
 			PromptBox_btntype::Confirm,
-			QStringLiteral("²¥·ÅÁĞ±íËÆºõ³öÁËĞ©ÎÊÌâ"), 0, false);
+			QStringLiteral("æ’­æ”¾åˆ—è¡¨ä¼¼ä¹å‡ºäº†äº›é—®é¢˜"), 0, false);
 		return;
 	}
 
-	stop_show_frame();
-	m_PageVideoRecord_kit->video_list->setEnabled(false);				// »Ø²¥ÆÚ¼ä ±ÜÃâ³öbug ²»ÔÊĞíµã»÷ÆäËûÊÓÆµ
-	m_PageVideoRecord_kit->videoplayer->play(video_name_iter->second);	// ¿ªÊ¼²¥·ÅÊÓÆµ
+	m_PageVideoRecord_kit->video_list->setEnabled(false);				// å›æ’­æœŸé—´ é¿å…å‡ºbug ä¸å…è®¸ç‚¹å‡»å…¶ä»–è§†é¢‘
+	m_PageVideoRecord_kit->videoplayer->play(video_name_iter->second);	// å¼€å§‹æ’­æ”¾è§†é¢‘
 }
 void PageVideoRecord::slot_replay_finish()
 {
-	begin_show_frame();
-	m_PageVideoRecord_kit->video_list->setEnabled(true);				// »Ø²¥Íê ÎÒ·¿¼äÀïÓĞĞ©ÆäËûºÃ¿µµÄ
+	m_PageVideoRecord_kit->video_list->setEnabled(true);				// å›æ’­å®Œ æˆ‘æˆ¿é—´é‡Œæœ‰äº›å…¶ä»–å¥½åº·çš„
 }

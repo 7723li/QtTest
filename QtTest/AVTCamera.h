@@ -102,12 +102,13 @@ private slots:
 	*/
 	void slot_cnt_framerate();
 
-
 private:
 	VimbaSystem & m_vimba_system;				// Vimba系统
 
 	ICameraListObserverPtr m_CameraObserver;	// 拔插事件观察者
 	IFrameObserverPtr m_FrameObserver;			// 帧回调观察者
+
+	FramePtrVector m_AVT_framebuffer;
 
 	CameraPtrVector m_avaliable_camera_list;	// 相机列表
 	CameraPtr m_using_camera;					// 当前使用中的相机 默认为相机列表第一个

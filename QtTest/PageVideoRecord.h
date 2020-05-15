@@ -1,14 +1,14 @@
-#pragma once
+ï»¿#pragma once
 
 /*
 @author : lzx
 @date	: 20200428
 @brief
-Â¼ÖÆ½çÃæ
+å½•åˆ¶ç•Œé¢
 @property
-Í¼Ïñ»ñÈ¡×ÓÏß³Ì(VideoCapture)
-Â¼ÖÆ½çÃæ¹¤¾ßÏä(PageVideoCollect_kit)
-Â¼ÖÆ½çÃæ±¾Ìå(PageVideoRecord)
+å›¾åƒè·å–å­çº¿ç¨‹(VideoCapture)
+å½•åˆ¶ç•Œé¢å·¥å…·ç®±(PageVideoCollect_kit)
+å½•åˆ¶ç•Œé¢æœ¬ä½“(PageVideoRecord)
 */
 
 #include <ctime>
@@ -16,13 +16,11 @@
 #include <QWidget>
 #include <QLabel>
 #include <QPushButton>
-#include <QHeaderView>
 #include <QTime>
 #include <QTimer>
-#include <QtConcurrent/QtConcurrent>
-#include <QFuture>
-#include <QPaintEvent>
 #include <QPainter>
+#include <QString>
+#include <QKeyEvent>
 
 #include "externalFile/opencv/include/opencv2/opencv.hpp"
 
@@ -35,59 +33,60 @@ class PageVideoRecord;
 
 /*
 @brief
-Â¼ÖÆ½çÃæµÄÍ¼Ïñ»ñÈ¡×ÓÏß³Ì
-¸ºÔğ´ÓÏà»ú»º³åÇø´¦»ñÈ¡Ïà»ú½âÎöºÃµÄÖ¡Êı¾İ
-²¢ÇÒ ±£´æÊÓÆµ
+å½•åˆ¶ç•Œé¢çš„å›¾åƒè·å–å­çº¿ç¨‹
+è´Ÿè´£ä»ç›¸æœºç¼“å†²åŒºå¤„è·å–ç›¸æœºè§£æå¥½çš„å¸§æ•°æ®
+å¹¶ä¸” ä¿å­˜è§†é¢‘
 */
-class VideoCapture : public QThread
+class CameraCapture : public QThread
 {
 	Q_OBJECT
 
 public:
 	/*
 	@note
-	¸¸Àà±ØĞëÎªÂ¼ÖÆ½çÃæ
+	çˆ¶ç±»å¿…é¡»ä¸ºå½•åˆ¶ç•Œé¢
 	*/
-	VideoCapture(PageVideoRecord* p);
-	~VideoCapture(){}
+	CameraCapture(PageVideoRecord* p);
+	~CameraCapture(){}
 
 	/*
 	@brief
-	¿ªÊ¼»ñÈ¡Í¼Ïñ
-	@param[1] c Â¼ÖÆ½çÃæµ±Ç°ÕıÔÚÊ¹ÓÃµÄÏà»ú camerabase*
-	@param[2] m Â¼ÖÆ½çÃæ ->ÒÑ¾­·ÖÅäºÃ<- µÄÖ¡¿Õ¼ä cv::Mat*
-	@param[3] v Â¼ÖÆ½çÃæµÄVideoWriter cv::VideoWriter*
+	å¼€å§‹è·å–å›¾åƒ
+	@param[1] c å½•åˆ¶ç•Œé¢å½“å‰æ­£åœ¨ä½¿ç”¨çš„ç›¸æœº camerabase*
+	@param[2] m å½•åˆ¶ç•Œé¢ ->å·²ç»åˆ†é…å¥½<- çš„å¸§ç©ºé—´ cv::Mat*
+	@param[3] v å½•åˆ¶ç•Œé¢çš„VideoWriter cv::VideoWriter*
 	*/
 	bool begin_capture(camerabase* c, cv::Mat* m, cv::VideoWriter* v);
 	/*
 	@brief
-	Í£Ö¹»ñÈ¡Í¼Ïñ
+	åœæ­¢è·å–å›¾åƒ
 	*/
 	void stop_capture();
 
 	/*
 	@brief
-	³¢ÊÔ¿ªÊ¼Â¼ÖÆ
+	å°è¯•å¼€å§‹å½•åˆ¶
 	*/
 	void begin_record();
 	/*
 	@brief
-	³¢ÊÔÍ£Ö¹Â¼ÖÆ
+	å°è¯•åœæ­¢å½•åˆ¶
 	*/
 	void stop_record();
 
+
 	/*
 	@brief
-	Í¼Ïñ»ñÈ¡×´Ì¬(Ïà»úÊÇ·ñÕıÔÚ¹¤×÷)
+	å›¾åƒè·å–çŠ¶æ€(ç›¸æœºæ˜¯å¦æ­£åœ¨å·¥ä½œ)
 	@note
-	¸Ã×´Ì¬Ó¦¸Ã±ØĞë¿ÉÒÔÓ°Ïìµ½ÊÇ·ñ¿ÉÒÔ¿ªÊ¼Â¼ÖÆ
+	è¯¥çŠ¶æ€åº”è¯¥å¿…é¡»å¯ä»¥å½±å“åˆ°æ˜¯å¦å¯ä»¥å¼€å§‹å½•åˆ¶
 	*/
 	bool capturing();
 	/*
 	@brief
-	Í¼ÏñÂ¼ÖÆ×´Ì¬(ÊÇ·ñÕıÔÚÂ¼ÖÆ)
+	å›¾åƒå½•åˆ¶çŠ¶æ€(æ˜¯å¦æ­£åœ¨å½•åˆ¶)
 	@note
-	¸Ã×´Ì¬Ó¦¸Ã±ØĞë¿ÉÒÔÓ°Ïìµ½ÊÇ·ñ¿ÉÒÔÍË³öÂ¼ÖÆ½çÃæ
+	è¯¥çŠ¶æ€åº”è¯¥å¿…é¡»å¯ä»¥å½±å“åˆ°æ˜¯å¦å¯ä»¥é€€å‡ºå½•åˆ¶ç•Œé¢
 	*/
 	bool recording();
 
@@ -95,12 +94,12 @@ private:
 	virtual void run() override;
 
 private:
-	bool need_capture;
-	bool need_record;
+	bool m_need_capture;
+	bool m_need_record;
 
-	camerabase* cam;
-	cv::Mat* mat;
-	cv::VideoWriter* writer;
+	camerabase* m_cam;
+	cv::Mat* m_mat;
+	cv::VideoWriter* m_writer;
 };
 
 class TransformPicture : public QThread
@@ -111,25 +110,25 @@ public:
 	TransformPicture(PageVideoRecord* p);
 	~TransformPicture(){}
 
-	bool begin_transform(cv::Mat* mat, QSize show_size, double sleep_time);
+	bool begin_transform(cv::Mat* mat, QSize qs, double st);
 	void stop_transform();
-
 private:
 	virtual void run() override;
 
 signals:
-	void show_one_frame(const QPixmap & image);
+	void show_one_frame(QPixmap& image);
 
 private:
-	cv::Mat* _mat;
-	QSize _show_size;
-	double _sleep_time;
-	bool _run;
+	QSize m_show_size;
+	double m_sleep_time;
+	bool m_run;
+	cv::Mat* m_mat;
+	QImage::Format m_fmt;
 };
 
 /*
 @brief
-Â¼ÖÆ½çÃæ¹¤¾ßÏä
+å½•åˆ¶ç•Œé¢å·¥å…·ç®±
 */
 typedef struct PageVideoRecord_kit
 {
@@ -138,23 +137,23 @@ public:
 	~PageVideoRecord_kit(){}
 
 public:
-	QLabel* frame_displayer;			// Ö¡ÏÔÊ¾Æ÷
-	QLabel* bed_num_label;				// ´²ºÅ
-	QLabel* patient_name_label;			// ĞÕÃû
-	QLabel* video_time_display;			// ÊÓÆµÊ±³¤ÏÔÊ¾
-	QPushButton* record_btn;			// (Í£Ö¹)Â¼ÖÆ°´Å¥
-	QPushButton* exit_btn;				// ½áÊø¼ì²é°´Å¥
+	QLabel* frame_displayer;			// å¸§æ˜¾ç¤ºå™¨
+	QLabel* bed_num_label;				// åºŠå·
+	QLabel* patient_name_label;			// å§“å
+	QLabel* video_time_display;			// è§†é¢‘æ—¶é•¿æ˜¾ç¤º
+	QPushButton* record_btn;			// (åœæ­¢)å½•åˆ¶æŒ‰é’®
+	QPushButton* exit_btn;				// ç»“æŸæ£€æŸ¥æŒ‰é’®
 
-	QWidget* video_list_background;		// ÊÓÆµ´æ·ÅÁĞ±íµÄ´¿°×±³¾°°å
-	VideoListWidget* video_list;		// ÊÓÆµ´æ·ÅÁĞ±í
+	QWidget* video_list_background;		// è§†é¢‘å­˜æ”¾åˆ—è¡¨çš„çº¯ç™½èƒŒæ™¯æ¿
+	VideoListWidget* video_list;		// è§†é¢‘å­˜æ”¾åˆ—è¡¨
 
-	VideoPlayer_ffmpeg* videoplayer;	// ÊÓÆµ²¥·ÅÆ÷
+	VideoPlayer_ffmpeg* videoplayer;	// è§†é¢‘æ’­æ”¾å™¨
 }
 PageVideoRecord_kit;
 
 /*
 @brief
-Â¼ÖÆ½çÃæ±¾Ìå
+å½•åˆ¶ç•Œé¢æœ¬ä½“
 */
 class PageVideoRecord : public QWidget
 {
@@ -167,74 +166,85 @@ public:
 public slots:
 	/*
 	@brief
-	Íâ²¿½øÈëÂ¼ÖÆ½çÃæ½Ó¿Ú
-	@param[1] examid ²¡Àıid QString
+	å¤–éƒ¨è¿›å…¥å½•åˆ¶ç•Œé¢æ¥å£
+	@param[1] examid ç—…ä¾‹id QString
 	*/
 	void enter_PageVideoRecord(const QString & examid);
 	/*
 	@brief
-	Íâ²¿ÍË³öÂ¼ÖÆ½çÃæ½Ó¿Ú
+	å¤–éƒ¨é€€å‡ºå½•åˆ¶ç•Œé¢æ¥å£
 	*/
 	void exit_PageVideoRecord();
 
+protected:
+	virtual void keyPressEvent(QKeyEvent* e);
+
 private:
-	void clear_videodisplay();								// ÇåÀíÍ¼ÏñÏÔÊ¾ÇøÓò
+	void clear_videodisplay();								// æ¸…ç†å›¾åƒæ˜¾ç¤ºåŒºåŸŸ
 	
-	void load_old_vidthumb();								// ¼ÓÔØÖ®Ç°µÄÂ¼ÏñËõÂÔÍ¼ ¸¸ÊÓÆµ
-	void put_video_vidthumb(const QString & video_path, const QString & icon_path);	// ·ÅÖÃÒ»¸öÊÓÆµËõÂÔÍ¼
-	void clear_all_vidthumb();								// ÇåÀíÂ¼ÏñËõÂÔÍ¼ÁĞ±í
+	void load_old_vidthumb();								// åŠ è½½ä¹‹å‰çš„å½•åƒç¼©ç•¥å›¾ çˆ¶è§†é¢‘
+	void put_video_vidthumb(const QString & video_path, const QString & icon_path);	// æ”¾ç½®ä¸€ä¸ªè§†é¢‘ç¼©ç•¥å›¾
+	void clear_all_vidthumb();								// æ¸…ç†å½•åƒç¼©ç•¥å›¾åˆ—è¡¨
 
-	void show_camera_openstatus(int openstatus);			// ÌáÊ¾Ïà»ú´ò¿ª×´Ì¬
-	void show_camera_closestatus(int closestatus);			// ÌáÊ¾Ïà»ú¹Ø±Õ×´Ì¬
+	void show_camera_openstatus(int openstatus);			// æç¤ºç›¸æœºæ‰“å¼€çŠ¶æ€
+	void show_camera_closestatus(int closestatus);			// æç¤ºç›¸æœºå…³é—­çŠ¶æ€
 	
-	void begin_capture();									// ¿ªÊ¼²¶×½Ó°Ïñ(¿ªÆô×ÓÏß³Ì)
-	void stop_capture();									// Í£Ö¹²¶×½Ó°Ïñ(¸Ä±ä×´Ì¬ ¹Ø±Õ×ÓÏß³Ì)
+	void begin_capture();									// å¼€å§‹æ•æ‰å½±åƒ(å¼€å¯å­çº¿ç¨‹)
+	void stop_capture();									// åœæ­¢æ•æ‰å½±åƒ(æ”¹å˜çŠ¶æ€ å…³é—­å­çº¿ç¨‹)
 
-	bool get_useful_fps(double & fps);						// »ñÈ¡Ò»¸öÓĞĞ§(>0)µÄÖ¡ÂÊ ÓÃÓÚÏÔÊ¾ºÍÂ¼ÖÆ
+	void begin_collect_fps();								// å¼€å§‹æ”¶é›†fps
+	void stop_collect_fps();								// åœæ­¢æ”¶é›†fps
 
-	void begin_show_frame();								// ¿ªÊ¼ÏÔÊ¾Í¼Ïñ(Æô¶¯¶¨Ê±Æ÷ ÔËĞĞ¼ä¸ô¸ù¾İÖ¡ÂÊ¾ö¶¨)
-	void stop_show_frame();									// Í£Ö¹ÏÔÊ¾Í¼Ïñ(¹Ø±Õ¶¨Ê±Æ÷)
+	void begin_show_frame();								// å¼€å§‹æ˜¾ç¤ºå›¾åƒ(å¯åŠ¨å®šæ—¶å™¨ è¿è¡Œé—´éš”æ ¹æ®å¸§ç‡å†³å®š)
+	void stop_show_frame();									// åœæ­¢æ˜¾ç¤ºå›¾åƒ(å…³é—­å®šæ—¶å™¨)
 
-	void begin_record();									// ´ÓÏÂÒ»ÂÖÓ°Ïñ²¶×½Ñ­»·¿ªÊ¼Â¼ÖÆ
-	void stop_record();										// ´ÓÏÂÒ»¸öÓ°Ïñ²¶×½Ñ­»·Í£Ö¹Â¼ÖÆ
+	void begin_record();									// ä»ä¸‹ä¸€è½®å½±åƒæ•æ‰å¾ªç¯å¼€å§‹å½•åˆ¶
+	void stop_record();										// ä»ä¸‹ä¸€ä¸ªå½±åƒæ•æ‰å¾ªç¯åœæ­¢å½•åˆ¶
 
-	bool apply_record_msg();								// ´´½¨ÊÓÆµÍ·
+	bool apply_record_msg();								// åˆ›å»ºè§†é¢‘å¤´
 
-	void begin_show_recordtime();							// ¿ªÊ¼ÏÔÊ¾Â¼ÖÆÊ±¼ä
-	void stop_show_recordtime();							// Í£Ö¹ÏÔÊ¾Â¼ÖÆÊ±¼ä
+	void begin_show_recordtime();							// å¼€å§‹æ˜¾ç¤ºå½•åˆ¶æ—¶é—´
+	void stop_show_recordtime();							// åœæ­¢æ˜¾ç¤ºå½•åˆ¶æ—¶é—´
 
 private slots:
-	void slot_show_one_frame(const QPixmap & _pixmap);		// ÏÔÊ¾Í¼Ïñ²Ûº¯Êı
+	void slot_show_one_frame(QPixmap& _pixmap);		// æ˜¾ç¤ºå›¾åƒæ§½å‡½æ•°
 
-	void slot_begin_or_finish_record();						// ¿ªÊ¼(½áÊø)Â¼ÖÆÊÓÆµ
+	void slot_begin_or_finish_record();						// å¼€å§‹(ç»“æŸ)å½•åˆ¶è§†é¢‘
 
-	void slot_show_recordtime();							// ÏÔÊ¾Â¼ÏñÊ±³¤
+	void slot_show_recordtime();							// æ˜¾ç¤ºå½•åƒæ—¶é•¿
 
-	void slot_replay_begin(QListWidgetItem* choosen_video);	// ÖØ²¥Â¼ÖÆµÄÊÓÆµ
-	void slot_replay_finish();								// ÖØ²¥Íê±Ï
+	void slot_show_framerate();
+
+	void slot_replay_begin(QListWidgetItem* choosen_video);	// é‡æ’­å½•åˆ¶çš„è§†é¢‘
+	void slot_replay_finish();								// é‡æ’­å®Œæ¯•
 
 signals:
-	void PageVideoRecord_exit(const QString & examid);		// ÍË³öÂ¼ÖÆ½çÃæÊ±·¢³öµÄĞÅºÅ ÓÉÖ÷½çÃæ½ÓÊÕ
+	void PageVideoRecord_exit(const QString & examid);		// é€€å‡ºå½•åˆ¶ç•Œé¢æ—¶å‘å‡ºçš„ä¿¡å· ç”±ä¸»ç•Œé¢æ¥æ”¶
 
 private:
 	PageVideoRecord_kit* m_PageVideoRecord_kit;
 
-	using thumb_name = std::map<QListWidgetItem*, QString>;	// ÓÉËõÂÔÍ¼ÕÒµ½ÊÓÆµÃû³ÆµÄÊı¾İ½á¹¹
-	thumb_name m_map_video_thumb_2_name;					// ÓÉËõÂÔÍ¼ÕÒµ½ÊÓÆµÃû³Æ
+	using thumb_name = std::map<QListWidgetItem*, QString>;	// ç”±ç¼©ç•¥å›¾æ‰¾åˆ°è§†é¢‘åç§°çš„æ•°æ®ç»“æ„
+	thumb_name m_map_video_thumb_2_name;					// ç”±ç¼©ç•¥å›¾æ‰¾åˆ°è§†é¢‘åç§°
 
-	QString m_examid;										// ²¡ÀıID ÓÉÍâ²¿´«Èë
-	QString m_video_path;									// Â¼ÖÆÊÓÆµµÄ±£´æÂ·¾¶
-	QString m_video_thumb_path;								// Â¼ÖÆÊÓÆµµÄËõÂÔÍ¼µÄ±£´æÂ·¾¶
+	QString m_examid;										// ç—…ä¾‹ID ç”±å¤–éƒ¨ä¼ å…¥
+	QString m_video_path;									// å½•åˆ¶è§†é¢‘çš„ä¿å­˜è·¯å¾„
+	QString m_video_thumb_path;								// å½•åˆ¶è§†é¢‘çš„ç¼©ç•¥å›¾çš„ä¿å­˜è·¯å¾„
+	const QString m_ready_record_hint;						// å‡†å¤‡å½•åƒä¸­...
 
-	TransformPicture* m_tranpicthr;							// Mat->PixmapÍ¼Ïñ¸ñÊ½×ª»»×ÓÏß³Ì (transform picture format thread)
+	TransformPicture* m_tranpicthr;							// Mat->Pixmapå›¾åƒæ ¼å¼è½¬æ¢å­çº¿ç¨‹ (transform picture format thread)
 
-	QTimer* m_record_duration_timer;						// ÓÃÓÚ¼ÇÂ¼Â¼ÏñÊ±³¤µÄ¶¨Ê±Æ÷
-	QTime m_record_duration_period;							// Â¼ÏñÊ±³¤ Ã¿´Î¶¨Ê±Æ÷Òç³ö×Ô¼Ó1
+	QTimer* m_record_duration_timer;						// ç”¨äºè®°å½•å½•åƒæ—¶é•¿çš„å®šæ—¶å™¨
+	QTime m_record_duration_period;							// å½•åƒæ—¶é•¿ æ¯æ¬¡å®šæ—¶å™¨æº¢å‡ºè‡ªåŠ 1
 
-	cv::Mat m_mat;											// Ö¡Êı¾İ»º´æ
-	cv::VideoWriter m_VideoWriter;							// ½«MatĞ´Èëµ½ÊÓÆµ
-	VideoCapture* m_video_capture;							// ²¶×½Ó°ÏñµÄ×ÓÏß³Ì
+	QTimer* m_show_framerate_timer;							// ç”¨äºæ˜¾ç¤ºfpsçš„å®šæ—¶å™¨
+	bool m_show_framerate;									// æ˜¯å¦æ˜¾ç¤ºfps
+	double m_framerate;										// å½“å‰ç›¸æœºçš„fps
 
-	camerabase* m_camerabase;								// Ïà»ú·â×° Í¨ÓÃÏà»ú½Ó¿Ú
-	AVTCamera* m_avt_camera;								// AVTÏà»ú
+	cv::Mat m_mat;											// å¸§æ•°æ®ç¼“å­˜
+	cv::VideoWriter m_VideoWriter;							// å°†Matå†™å…¥åˆ°è§†é¢‘
+	CameraCapture* m_video_capture;							// æ•æ‰å½±åƒçš„å­çº¿ç¨‹
+
+	camerabase* m_camerabase;								// ç›¸æœºå°è£… é€šç”¨ç›¸æœºæ¥å£
+	AVTCamera* m_avt_camera;								// AVTç›¸æœº
 };

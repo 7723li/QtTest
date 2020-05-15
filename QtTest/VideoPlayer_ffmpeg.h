@@ -9,7 +9,7 @@
 #include <QImage>
 #include <QPixmap>
 #include <QLabel>
-#include <QPaintEvent>
+#include <QSlider>
 
 extern "C"
 {
@@ -21,6 +21,13 @@ extern "C"
 }
 
 class VideoPlayer_ffmpeg;
+
+typedef struct VideoFrameCollector_ffmpeg_kit
+{
+	QSlider* slider;
+
+}
+VideoFrameCollector_ffmpeg_kit;
 
 /*
 @brief
