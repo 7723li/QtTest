@@ -1,18 +1,78 @@
 #include "VideoPlayer_ffmpeg.h"
 
-VideoFrameCollector_ffmpeg::VideoFrameCollector_ffmpeg(VideoPlayer_ffmpeg* p) :
-QThread(p)
+VideoPlayer_ffmpeg_ControlPanel_kit::VideoPlayer_ffmpeg_ControlPanel_kit(VideoPlayer_ffmpeg_ControlPanel* p)
 {
-	
+	slider = new QSlider(p);
+	slider->setTickPosition(QSlider::NoTicks);
+	slider->setOrientation(Qt::Horizontal);
+	slider->setGeometry(0, 0, p->width(), 10);
+
+	play_or_pause_btn = new QPushButton(p);
+	play_or_pause_btn->setGeometry(60, 50, 50, 50);
+	play_or_pause_btn->setText("popop");
+
+	video_sumtime = new QLabel(p);
+	video_sumtime->setGeometry(120, 65, 100, 20);
+	video_sumtime->setText("00:00:00");
+
+	video_playtime = new QLabel(p);
+	video_playtime->setGeometry(250, 65, 100, 20);
+	video_playtime->setText("00:00:00");
+
+	play_speed_box = new QComboBox(p);
+	play_speed_box->setGeometry(400, 60, 40, 40);
+
+	delete_btn = new QPushButton(p);
+	shear_btn = new QPushButton(p);
+
+	func_button_list = new QStackedWidget(p);
+	func_button_list->addWidget(delete_btn);
+	func_button_list->addWidget(shear_btn);
+
+	func_button_list->setGeometry(450, 60, 40, 40);
 }
 
-void VideoFrameCollector_ffmpeg::set_videoname(const QString& videoname)
+
+
+
+
+
+VideoPlayer_ffmpeg_ControlPanel::VideoPlayer_ffmpeg_ControlPanel(VideoPlayer_ffmpeg* p):
+QSlider(p)
+{
+	m_control_kit = new VideoPlayer_ffmpeg_ControlPanel_kit(this);
+}
+
+
+
+
+VideoPlayer_ffmpeg_FrameProcesser::VideoPlayer_ffmpeg_FrameProcesser(VideoPlayer_ffmpeg* p)
+{
+
+}
+
+
+
+
+VideoPlayer_ffmpeg_FrameCollector::VideoPlayer_ffmpeg_FrameCollector(VideoPlayer_ffmpeg* p) : 
+QThread(p)
+{
+	m_playspeed = 1;
+}
+void VideoPlayer_ffmpeg_FrameCollector::set_videoname(const QString& videoname)
 {
 	QFileInfo to_abs_filepath(videoname);		// 安全起见 无论传进来的是什么都先设为绝对路径
 	m_videoname = to_abs_filepath.absoluteFilePath();
 }
-
-void VideoFrameCollector_ffmpeg::run()
+void VideoPlayer_ffmpeg_FrameCollector::set_playspeed(int speed)
+{
+	m_playspeed = speed;
+}
+void VideoPlayer_ffmpeg_FrameCollector::set_show_size(QSize size)
+{
+	m_showsize = size;
+}
+void VideoPlayer_ffmpeg_FrameCollector::run()
 {
 	av_register_all();	// 初始化ffmpeg环境
 
@@ -100,9 +160,8 @@ void VideoFrameCollector_ffmpeg::run()
 	// av_dump_format(format_context, 0, file_name, 0);
 
 	QPixmap pixmap(video_codeccontext->width, video_codeccontext->height);
-	QImage image = QImage(video_codeccontext->width, video_codeccontext->height, QImage::Format_Grayscale8);
 	int get_picture = 0;
-	int num = 0;
+	int pic_area = video_codeccontext->width * video_codeccontext->height;
 	while (true)
 	{
 		// 读一帧 <0 就说明读完了
@@ -129,11 +188,10 @@ void VideoFrameCollector_ffmpeg::run()
 			sws_scale(img_convert_ctx, frame->data, frame->linesize, 0, video_codeccontext->height, frameRGB->data, frameRGB->linesize);
 		}
 
-		memcpy(image.bits(), out_buffer, video_codeccontext->width* video_codeccontext->height);
-		if (pixmap.convertFromImage(image))
-		{
-			emit collect_one_frame(pixmap);
-		}
+		QImage& image = QImage(out_buffer, video_codeccontext->width, video_codeccontext->height, QImage::Format_Grayscale8);
+		QPixmap& pixmap = QPixmap::fromImage(image);
+		pixmap = pixmap.scaled(m_showsize);
+		emit collect_one_frame(pixmap, 0);
 	}
 
 	av_free(out_buffer);						// 清空缓冲区
@@ -147,11 +205,15 @@ void VideoFrameCollector_ffmpeg::run()
 
 
 
-VideoPlayer_ffmpeg_kit::VideoPlayer_ffmpeg_kit(VideoPlayer_ffmpeg* p) :
-	QWidget(p)
+VideoPlayer_ffmpeg_kit::VideoPlayer_ffmpeg_kit(VideoPlayer_ffmpeg* p) 
 {
-	frame_displayer = new QLabel(this);
+	frame_displayer = new QLabel(p);
 	frame_displayer->setGeometry(0, 0, 900, 900);
+	frame_displayer->show();
+
+	controler = new VideoPlayer_ffmpeg_ControlPanel(p);
+	controler->setGeometry(0, 750, 900, 150);
+	controler->hide();
 }
 
 
@@ -162,9 +224,9 @@ VideoPlayer_ffmpeg_kit::VideoPlayer_ffmpeg_kit(VideoPlayer_ffmpeg* p) :
 VideoPlayer_ffmpeg::VideoPlayer_ffmpeg(QWidget* p):
 QWidget(p)
 {
-	m_collector = new VideoFrameCollector_ffmpeg(this);
-	connect(m_collector, &VideoFrameCollector_ffmpeg::collect_one_frame, this, &VideoPlayer_ffmpeg::show_frame, Qt::DirectConnection);
-	connect(m_collector, &VideoFrameCollector_ffmpeg::finish_collect_frame, this, &VideoPlayer_ffmpeg::slot_finish_collect_frame);
+	m_collector = new VideoPlayer_ffmpeg_FrameCollector(this);
+	connect(m_collector, &VideoPlayer_ffmpeg_FrameCollector::collect_one_frame, this, &VideoPlayer_ffmpeg::slot_show_one_frame);
+	connect(m_collector, &VideoPlayer_ffmpeg_FrameCollector::finish_collect_frame, this, &VideoPlayer_ffmpeg::slot_finish_collect_frame);
 
 	m_VideoPlayer_ffmpeg_kit = new VideoPlayer_ffmpeg_kit(this);
 }
@@ -177,14 +239,43 @@ VideoPlayer_ffmpeg::~VideoPlayer_ffmpeg()
 void VideoPlayer_ffmpeg::play(const QString & video_name)
 {
 	m_VideoPlayer_ffmpeg_kit->frame_displayer->show();
+	m_VideoPlayer_ffmpeg_kit->controler->show();
 	this->show();
+
 	m_collector->set_videoname(video_name);
+	m_collector->set_playspeed(1);
+	m_collector->set_show_size(m_VideoPlayer_ffmpeg_kit->frame_displayer->size());
 	m_collector->start();
 }
 
-void VideoPlayer_ffmpeg::show_frame(const QPixmap& pixmap)
+void VideoPlayer_ffmpeg::slot_show_one_frame(const QPixmap& pixmap, int prog)
 {
 	m_VideoPlayer_ffmpeg_kit->frame_displayer->setPixmap(pixmap);
+}
+
+void VideoPlayer_ffmpeg::slot_play_or_pause()
+{
+
+}
+
+void VideoPlayer_ffmpeg::slot_video_leap()
+{
+
+}
+
+void VideoPlayer_ffmpeg::slot_change_playspeed()
+{
+
+}
+
+void VideoPlayer_ffmpeg::slot_delete_video()
+{
+
+}
+
+void VideoPlayer_ffmpeg::slot_shear_video()
+{
+
 }
 
 void VideoPlayer_ffmpeg::slot_finish_collect_frame()
@@ -194,5 +285,5 @@ void VideoPlayer_ffmpeg::slot_finish_collect_frame()
 	m_VideoPlayer_ffmpeg_kit->frame_displayer->hide();
 	this->hide();
 
-	emit finish_play_video();
+	emit play_finish();
 }
