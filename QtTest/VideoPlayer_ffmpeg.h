@@ -173,6 +173,8 @@ public:
 	void play(const QString & video_name);
 
 protected:
+	void enterEvent(QEvent *event);
+	void 
 
 private:
 	void change_play_time();
