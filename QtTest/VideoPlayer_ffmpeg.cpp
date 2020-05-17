@@ -248,6 +248,15 @@ void VideoPlayer_ffmpeg::play(const QString & video_name)
 	m_collector->start();
 }
 
+void VideoPlayer_ffmpeg::enterEvent(QEvent* event)
+{
+	m_VideoPlayer_ffmpeg_kit->controler->show();
+}
+void VideoPlayer_ffmpeg::leaveEvent(QEvent* event)
+{
+	m_VideoPlayer_ffmpeg_kit->controler->hide();
+}
+
 void VideoPlayer_ffmpeg::slot_show_one_frame(const QPixmap& pixmap, int prog)
 {
 	m_VideoPlayer_ffmpeg_kit->frame_displayer->setPixmap(pixmap);
