@@ -556,7 +556,7 @@ void PageVideoRecord::slot_replay_begin(QListWidgetItem* choosen_video)
 
 	m_PageVideoRecord_kit->video_list->setEnabled(false);				// 回播期间 避免出bug 不允许点击其他视频
 	m_PageVideoRecord_kit->videoplayer->show();
-	m_PageVideoRecord_kit->videoplayer->play(video_name_iter->second);	// 开始播放视频
+	m_PageVideoRecord_kit->videoplayer->set_media(video_name_iter->second);	// 开始播放视频
 }
 void PageVideoRecord::slot_replay_finish()
 {

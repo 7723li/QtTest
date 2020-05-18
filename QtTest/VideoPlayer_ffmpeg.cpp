@@ -1,163 +1,10 @@
 #include "VideoPlayer_ffmpeg.h"
 
-VideoPlayer_ffmpeg_FrameProcesser::VideoPlayer_ffmpeg_FrameProcesser(VideoPlayer_ffmpeg* p)
-{
-
-}
-
-
-
-
-
-
 
 VideoPlayer_ffmpeg_FrameCollector::VideoPlayer_ffmpeg_FrameCollector(VideoPlayer_ffmpeg* p) : 
 QThread(p)
 {
-	m_playspeed = 1;
-	m_videostream_idx = -1;
-
-	m_is_run = false;
-}
-
-void VideoPlayer_ffmpeg_FrameCollector::set_param(
-	AVCodecContext* video_codeccontext,
-	AVFormatContext* format_context,
-	AVPacket* read_packct, 
-	AVFrame* oriframe, 
-	AVFrame* swsframe,
-	SwsContext* img_convert_ctx,
-	uint8_t* frame_buffer, 
-	QSize showsize, 
-	QImage::Format img_fmt,
-	int videostream_idx,
-	int playspeed)
-{
-	m_video_codeccontext = video_codeccontext;
-	m_format_context = format_context;
-	m_read_packct = read_packct;
-	m_oriframe = oriframe;
-	m_swsframe = swsframe ;
-	m_img_convert_ctx = img_convert_ctx;
-	m_frame_buffer = frame_buffer;
-	m_showsize = showsize;
-	m_img_fmt = img_fmt;
-	m_playspeed = playspeed;
-	m_videostream_idx = videostream_idx;
-
-	m_is_run = true;
-}
-void VideoPlayer_ffmpeg_FrameCollector::pause()
-{
-
-}
-void VideoPlayer_ffmpeg_FrameCollector::stop()
-{
-
-}
-void VideoPlayer_ffmpeg_FrameCollector::run()
-{
-	QPixmap pixmap(m_video_codeccontext->width, m_video_codeccontext->height);
-	int get_picture = 0;
-	while (true)
-	{
-		if (!m_is_run)
-		{
-			break;
-		}
-
-		get_picture = 0;
-
-		// 读一帧 <0 就说明读完了
-		if (av_read_frame(m_format_context, m_read_packct) < 0)
-		{
-			break;
-		}
-
-		int pts = m_read_packct->pts;
-
-		// 安全判断 确保解码的是视频流
-		if (m_read_packct->stream_index != m_videostream_idx)
-			continue;
-
-		// 解码一帧
-		int ret = avcodec_decode_video2(m_video_codeccontext, m_oriframe, &get_picture, m_read_packct);
-		// 如果 解码成功 并且 该帧为关键帧 才去转码
-		if (ret > 0 && get_picture > 0)
-		{
-			// 转码一帧
-			sws_scale(m_img_convert_ctx, m_oriframe->data, m_oriframe->linesize, 0, m_video_codeccontext->height, m_swsframe->data, m_swsframe->linesize);
-		}
-		
-		// 保持显示
-		QImage& image = QImage(m_frame_buffer, m_video_codeccontext->width, m_video_codeccontext->height, m_img_fmt);
-		QPixmap& pixmap = QPixmap::fromImage(image);
-		pixmap = pixmap.scaled(m_showsize);
-		emit collect_one_frame(pixmap, 0);
-	}
-	emit finish_collect_frame();
-}
-
-
-
-
-VideoPlayer_ffmpeg_ControlPanel_kit::VideoPlayer_ffmpeg_ControlPanel_kit(QLabel* p) :
-QWidget(p)
-{
-	slider = new QSlider(this);
-	slider->setTickPosition(QSlider::NoTicks);
-	slider->setOrientation(Qt::Horizontal);
-	slider->setGeometry(0, 0, p->width(), 10);
-
-	play_or_pause_btn = new QPushButton(this);
-	play_or_pause_btn->setGeometry(60, 50, 50, 50);
-	play_or_pause_btn->setText("popop");
-
-	video_sumtime = new QLabel(this);
-	video_sumtime->setGeometry(120, 65, 100, 20);
-	video_sumtime->setText("00:00:00");
-
-	video_playtime = new QLabel(this);
-	video_playtime->setGeometry(250, 65, 100, 20);
-	video_playtime->setText("00:00:00");
-
-	play_speed_box = new QComboBox(this);
-	play_speed_box->setGeometry(400, 60, 40, 40);
-
-	func_button_list = new QStackedWidget(this);
-	delete_btn = new QPushButton(func_button_list);
-	shear_btn = new QPushButton(func_button_list);
-	func_button_list->setGeometry(450, 60, 40, 40);
-	func_button_list->addWidget(delete_btn);
-	func_button_list->addWidget(shear_btn);
-}
-
-
-
-
-
-VideoPlayer_ffmpeg_kit::VideoPlayer_ffmpeg_kit(VideoPlayer_ffmpeg* p) 
-{
-	frame_displayer = new QLabel(p);
-	frame_displayer->setGeometry(0, 0, 900, 900);
-	frame_displayer->show();
-
-	controler = new VideoPlayer_ffmpeg_ControlPanel_kit(frame_displayer);
-	controler->setGeometry(0, 750, 900, 150);
-	controler->hide();
-}
-
-
-
-
-VideoPlayer_ffmpeg::VideoPlayer_ffmpeg(QWidget* p) :
-QWidget(p)
-{
-	this->setFocusPolicy(Qt::ClickFocus);
-	this->hide();
-
-	m_VideoPlayer_ffmpeg_kit = new VideoPlayer_ffmpeg_kit(this);
-
+	m_format_context = nullptr;
 	m_format_context = nullptr;
 	m_video_codeccontext = nullptr;
 	m_video_codec = nullptr;
@@ -167,88 +14,21 @@ QWidget(p)
 	m_frame_buffer = nullptr;
 	m_read_packct = nullptr;
 
-	m_collector = new VideoPlayer_ffmpeg_FrameCollector(this);
-	connect(m_collector, &VideoPlayer_ffmpeg_FrameCollector::collect_one_frame, this, &VideoPlayer_ffmpeg::slot_show_one_frame);
-	connect(m_collector, &VideoPlayer_ffmpeg_FrameCollector::finish_collect_frame, this, &VideoPlayer_ffmpeg::slot_finish_collect_frame);
+	m_play_speed = 1;
+	m_videostream_idx = -1;
 
-	m_controller_always_hide = false;
+	m_is_thred_run = false;
+	m_play_status = play_status::PAUSING;
+
+	connect(this, &QThread::finished, this, &VideoPlayer_ffmpeg_FrameCollector::finish_collect_frame);
 }
-
-VideoPlayer_ffmpeg::~VideoPlayer_ffmpeg()
-{
-
-}
-
-void VideoPlayer_ffmpeg::play(const QString & video_path, video_or_gif sta, int playspeed)
-{
-	if (sta == video_or_gif::VideoStyle)
-		m_controller_always_hide = false;
-	else if (sta == video_or_gif::GifStyle)
-		m_controller_always_hide = true;
-
-	QFileInfo video_info(video_path);
-	if (!video_info.exists())
-	{
-		PromptBoxInst(this)->msgbox_go(PromptBox_msgtype::Warning,
-			PromptBox_btntype::None,
-			QStringLiteral("没有找到视频信息"),
-			1000, true);
-		return;
-	}
-
-	m_video_path = video_info.absoluteFilePath();
-	init_ffmpeg();
-	bool analy_succ = analysis_video();
-	if (!analy_succ)
-	{
-		PromptBoxInst(this)->msgbox_go(PromptBox_msgtype::Warning,
-			PromptBox_btntype::None,
-			QStringLiteral("视频解析错误"),
-			1000, true);
-		return;
-	}
-
-	m_play_speed = playspeed;
-
-	m_collector->set_param(m_video_codeccontext,
-		m_format_context,
-		m_read_packct,
-		m_oriframe,
-		m_swsframe,
-		m_img_convert_ctx,
-		m_frame_buffer,
-		m_VideoPlayer_ffmpeg_kit->frame_displayer->size(),
-		m_image_fmt,
-		m_play_speed,
-		m_videostream_idx
-		);
-	m_collector->start();
-}
-
-void VideoPlayer_ffmpeg::enterEvent(QEvent* event)
-{
-	if (m_controller_always_hide)
-		return;
-
-	m_VideoPlayer_ffmpeg_kit->controler->show();
-}
-void VideoPlayer_ffmpeg::leaveEvent(QEvent* event)
-{
-	if (m_controller_always_hide)
-		return;
-
-	m_VideoPlayer_ffmpeg_kit->controler->hide();
-}
-
-void VideoPlayer_ffmpeg::init_ffmpeg()
+bool VideoPlayer_ffmpeg_FrameCollector::init(const QString& video_path, QSize show_size, int playspeed)
 {
 	av_register_all();	// 初始化ffmpeg环境
-}
-bool VideoPlayer_ffmpeg::analysis_video()
-{
+
 	// 打开一个格式内容 并右键查看"视频属性"
 	m_format_context = avformat_alloc_context();
-	int open_format = avformat_open_input(&m_format_context, m_video_path.toStdString().c_str(), nullptr, nullptr);
+	int open_format = avformat_open_input(&m_format_context, video_path.toStdString().c_str(), nullptr, nullptr);
 	if (open_format < 0)
 	{
 		return false;
@@ -314,7 +94,7 @@ bool VideoPlayer_ffmpeg::analysis_video()
 		m_video_codeccontext->pix_fmt,
 		m_video_codeccontext->width,
 		m_video_codeccontext->height,
-		AV_PIX_FMT_GRAY8,
+		AV_PIX_FMT_RGB24,
 		SWS_BICUBIC,
 		NULL,
 		NULL,
@@ -324,11 +104,11 @@ bool VideoPlayer_ffmpeg::analysis_video()
 	{
 		return false;
 	}
-	m_image_fmt = QImage::Format_Grayscale8;
+	m_image_fmt = QImage::Format_RGB888;
 
 	// 根据转存格式计算 一帧需要的字节数 取决于 格式、图像大小
 	int num_bytes = avpicture_get_size(
-		AV_PIX_FMT_GRAY8,
+		AV_PIX_FMT_RGB24,
 		m_video_codeccontext->width,
 		m_video_codeccontext->height);
 	if (num_bytes <= 0)
@@ -343,7 +123,7 @@ bool VideoPlayer_ffmpeg::analysis_video()
 		return false;
 	}
 
-	int fill_succ = avpicture_fill((AVPicture*)m_swsframe, m_frame_buffer, AV_PIX_FMT_GRAY8,
+	int fill_succ = avpicture_fill((AVPicture*)m_swsframe, m_frame_buffer, AV_PIX_FMT_RGB24,
 		m_video_codeccontext->width, m_video_codeccontext->height);
 	if (fill_succ < 0)
 	{
@@ -360,7 +140,253 @@ bool VideoPlayer_ffmpeg::analysis_video()
 		return false;
 	}
 
+	m_play_speed = playspeed;
+	m_showsize = show_size;
+	m_play_status = play_status::PAUSING;
 	return true;
+}
+
+void VideoPlayer_ffmpeg_FrameCollector::play()
+{
+	m_play_status = play_status::PLAYING;
+	m_is_thred_run = true;
+	if (!this->isRunning())
+	{
+		this->start();
+	}
+}
+void VideoPlayer_ffmpeg_FrameCollector::pause()
+{
+	m_play_status = play_status::PAUSING;
+}
+void VideoPlayer_ffmpeg_FrameCollector::stop()
+{
+	m_is_thred_run = false;
+	this->wait();
+}
+bool VideoPlayer_ffmpeg_FrameCollector::playing()
+{
+	return (m_play_status == play_status::PLAYING);
+}
+bool VideoPlayer_ffmpeg_FrameCollector::pausing()
+{
+	return (m_play_status == play_status::PAUSING);
+}
+void VideoPlayer_ffmpeg_FrameCollector::run()
+{
+	while (true)
+	{
+		if (!m_is_thred_run)
+		{
+			break;
+		}
+
+		if (m_play_status == play_status::PAUSING)
+		{
+			continue;
+		}
+
+		int get_picture = 0;
+
+		// 读一帧 <0 就说明读完了
+		if (av_read_frame(m_format_context, m_read_packct) < 0)
+		{
+			break;
+		}
+
+		int pts = m_read_packct->pts;
+
+		// 安全判断 确保解码的是视频流
+		if (m_read_packct->stream_index != m_videostream_idx)
+			continue;
+
+		// 解码一帧
+		int ret = avcodec_decode_video2(m_video_codeccontext, m_oriframe, &get_picture, m_read_packct);
+		// 如果 解码成功 并且 该帧为关键帧 才去转码
+		if (ret > 0 && get_picture > 0)
+		{
+			// 转码一帧
+			sws_scale(m_img_convert_ctx, m_oriframe->data, m_oriframe->linesize, 0, m_video_codeccontext->height, m_swsframe->data, m_swsframe->linesize);
+		}
+		
+		// 保持显示
+		QImage& image = QImage(m_frame_buffer, m_video_codeccontext->width, m_video_codeccontext->height, m_image_fmt);
+		QPixmap& pixmap = QPixmap::fromImage(image);
+		pixmap = pixmap.scaled(m_showsize);
+		emit collect_one_frame(pixmap, 0);
+	}
+
+	free_src();
+}
+void VideoPlayer_ffmpeg_FrameCollector::free_src()
+{
+	av_free(m_frame_buffer);						// 清空缓冲区
+	av_free(m_oriframe);							// 清空原始帧格式
+	av_free(m_swsframe);							// 清空转换帧格式
+	av_free_packet(m_read_packct);
+	avcodec_close(m_video_codeccontext);			// 关闭解码器
+	avformat_close_input(&m_format_context);		// 关闭视频属性
+
+	if (nullptr != m_read_packct)
+		delete m_read_packct;
+
+	m_format_context = nullptr;
+	m_format_context = nullptr;
+	m_video_codeccontext = nullptr;
+	m_video_codec = nullptr;
+	m_oriframe = nullptr;
+	m_swsframe = nullptr;
+	m_img_convert_ctx = nullptr;
+	m_frame_buffer = nullptr;
+	m_read_packct = nullptr;
+
+	m_play_speed = 1;
+	m_videostream_idx = -1;
+	m_play_status = play_status::PAUSING;
+}
+
+
+
+
+
+
+VideoPlayer_ffmpeg_ControlPanel_kit::VideoPlayer_ffmpeg_ControlPanel_kit(QLabel* p) :
+QWidget(p)
+{
+	slider = new QSlider(this);
+	slider->setTickPosition(QSlider::NoTicks);
+	slider->setOrientation(Qt::Horizontal);
+	slider->setGeometry(0, 0, p->width(), 10);
+
+	play_or_pause_btn = new QPushButton(this);
+	play_or_pause_btn->setGeometry(60, 50, 50, 50);
+	play_or_pause_btn->setText("popop");
+
+	video_sumtime = new QLabel(this);
+	video_sumtime->setGeometry(120, 65, 100, 20);
+	video_sumtime->setText("00:00:00");
+
+	video_playtime = new QLabel(this);
+	video_playtime->setGeometry(250, 65, 100, 20);
+	video_playtime->setText("00:00:00");
+
+	play_speed_box = new QComboBox(this);
+	play_speed_box->setGeometry(400, 60, 40, 40);
+
+	func_button_list = new QStackedWidget(this);
+	delete_btn = new QPushButton(func_button_list);
+	shear_btn = new QPushButton(func_button_list);
+	func_button_list->setGeometry(450, 60, 40, 40);
+	func_button_list->addWidget(delete_btn);
+	func_button_list->addWidget(shear_btn);
+}
+
+
+
+
+
+VideoPlayer_ffmpeg_kit::VideoPlayer_ffmpeg_kit(VideoPlayer_ffmpeg* p) 
+{
+	frame_displayer = new QLabel(p);
+	frame_displayer->setGeometry(0, 0, 900, 900);
+	frame_displayer->show();
+
+	controler = new VideoPlayer_ffmpeg_ControlPanel_kit(frame_displayer);
+	controler->setGeometry(0, 750, 900, 150);
+	controler->hide();
+}
+
+
+
+
+VideoPlayer_ffmpeg::VideoPlayer_ffmpeg(QWidget* p) :
+QWidget(p)
+{
+	this->setFocusPolicy(Qt::ClickFocus);
+	this->hide();
+
+	m_VideoPlayer_ffmpeg_kit = new VideoPlayer_ffmpeg_kit(this);
+	connect(m_VideoPlayer_ffmpeg_kit->controler->play_or_pause_btn, &QPushButton::clicked, this, &VideoPlayer_ffmpeg::slot_play_or_pause);
+
+	m_collector = new VideoPlayer_ffmpeg_FrameCollector(this);
+	connect(m_collector, &VideoPlayer_ffmpeg_FrameCollector::collect_one_frame, this, &VideoPlayer_ffmpeg::slot_show_one_frame);
+	connect(m_collector, &VideoPlayer_ffmpeg_FrameCollector::finish_collect_frame, this, &VideoPlayer_ffmpeg::slot_finish_collect_frame);
+
+	m_controller_always_hide = false;
+}
+
+VideoPlayer_ffmpeg::~VideoPlayer_ffmpeg()
+{
+
+}
+
+void VideoPlayer_ffmpeg::set_media(const QString & video_path, video_or_gif sta, int playspeed)
+{
+	clear_videodisplayer();
+
+	// 确认显示样式
+	if (sta == video_or_gif::VideoStyle)
+		m_controller_always_hide = false;
+	else if (sta == video_or_gif::GifStyle)
+		m_controller_always_hide = true;
+
+	// 确保视频路径正确
+	QFileInfo video_info(video_path);
+	if (!video_info.exists())
+	{
+		PromptBoxInst(this)->msgbox_go(PromptBox_msgtype::Warning,
+			PromptBox_btntype::None,
+			QStringLiteral("没有找到视频信息"),
+			1000, true);
+		return;
+	}
+	const QString& abs_video_path = video_info.absoluteFilePath();
+
+	// 初始化ffmpeg使用环境
+	bool anay_succ = m_collector->init(abs_video_path, m_VideoPlayer_ffmpeg_kit->frame_displayer->size(), 1);
+	if (!anay_succ)
+	{
+		m_controller_always_hide = false;								// ffmpeg初始化失败 不允许显示控制面板
+		PromptBoxInst(this)->msgbox_go(PromptBox_msgtype::Warning,
+			PromptBox_btntype::None,
+			QStringLiteral("视频解析错误"),
+			1000, true);
+		return;
+	}
+}
+
+void VideoPlayer_ffmpeg::enterEvent(QEvent* event)
+{
+	if (m_controller_always_hide)
+		return;
+
+	m_VideoPlayer_ffmpeg_kit->controler->show();
+}
+void VideoPlayer_ffmpeg::leaveEvent(QEvent* event)
+{
+	if (m_controller_always_hide)
+		return;
+
+	m_VideoPlayer_ffmpeg_kit->controler->hide();
+}
+void VideoPlayer_ffmpeg::keyPressEvent(QKeyEvent* event)
+{
+	if (event->modifiers() == Qt::ControlModifier && event->key() == Qt::Key_W)
+	{
+		event->accept();
+		slot_exit();
+	}
+	else
+	{
+		event->ignore();
+	}
+}
+
+void VideoPlayer_ffmpeg::clear_videodisplayer()
+{
+	QImage pure_dark_image(m_VideoPlayer_ffmpeg_kit->frame_displayer->size(), QImage::Format_RGB888);
+	pure_dark_image.fill(Qt::black);
+	m_VideoPlayer_ffmpeg_kit->frame_displayer->setPixmap(QPixmap::fromImage(pure_dark_image));
 }
 
 void VideoPlayer_ffmpeg::slot_show_one_frame(const QPixmap& pixmap, int prog)
@@ -370,7 +396,15 @@ void VideoPlayer_ffmpeg::slot_show_one_frame(const QPixmap& pixmap, int prog)
 
 void VideoPlayer_ffmpeg::slot_play_or_pause()
 {
-
+	if (m_collector->pausing())
+	{
+		// 开始从视频中取帧
+		m_collector->play();
+	}
+	else if (m_collector->playing())
+	{
+		m_collector->pause();
+	}
 }
 
 void VideoPlayer_ffmpeg::slot_video_leap()
@@ -393,20 +427,14 @@ void VideoPlayer_ffmpeg::slot_shear_video()
 
 }
 
+void VideoPlayer_ffmpeg::slot_exit()
+{
+	m_collector->stop();
+	this->hide();
+}
+
 void VideoPlayer_ffmpeg::slot_finish_collect_frame()
 {
 	m_collector->stop();
-
-	av_free(m_frame_buffer);						// 清空缓冲区
-	av_free(m_oriframe);							// 清空原始帧格式
-	av_free(m_swsframe);							// 清空转换帧格式
-	av_free_packet(m_read_packct);
-	avcodec_close(m_video_codeccontext);			// 关闭解码器
-	avformat_close_input(&m_format_context);		// 关闭视频属性
-
-	if (nullptr != m_read_packct)
-		delete m_read_packct;
-	m_read_packct = nullptr;
-
 	emit play_finish();
 }
