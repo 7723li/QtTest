@@ -15,68 +15,84 @@ VideoPlayer_ffmpeg_FrameCollector::VideoPlayer_ffmpeg_FrameCollector(VideoPlayer
 QThread(p)
 {
 	m_playspeed = 1;
-	m_is_play = false;
+	m_videostream_idx = -1;
+
+	m_is_run = false;
 }
 
-void VideoPlayer_ffmpeg_FrameCollector::play(
-	AVCodecContext* vcc, 
-	AVFormatContext* fc, 
-	AVPacket* avp, 
-	AVFrame* avfra, 
-	uint8_t* b, 
-	QSize ss, 
+void VideoPlayer_ffmpeg_FrameCollector::set_param(
+	AVCodecContext* video_codeccontext,
+	AVFormatContext* format_context,
+	AVPacket* read_packct, 
+	AVFrame* oriframe, 
+	AVFrame* swsframe,
+	SwsContext* img_convert_ctx,
+	uint8_t* frame_buffer, 
+	QSize showsize, 
 	QImage::Format img_fmt,
+	int videostream_idx,
 	int playspeed)
 {
-	m_vcc = vcc;
-	m_fc = fc;
-	m_avp = avp;
-	m_avfra = avfra;
-	m_b = b;
-	m_ss = ss;
+	m_video_codeccontext = video_codeccontext;
+	m_format_context = format_context;
+	m_read_packct = read_packct;
+	m_oriframe = oriframe;
+	m_swsframe = swsframe ;
+	m_img_convert_ctx = img_convert_ctx;
+	m_frame_buffer = frame_buffer;
+	m_showsize = showsize;
 	m_img_fmt = img_fmt;
 	m_playspeed = playspeed;
+	m_videostream_idx = videostream_idx;
 
-	m_is_play = true;
-	this->start();
+	m_is_run = true;
 }
-
 void VideoPlayer_ffmpeg_FrameCollector::pause()
 {
 
 }
-
 void VideoPlayer_ffmpeg_FrameCollector::stop()
 {
 
 }
-
 void VideoPlayer_ffmpeg_FrameCollector::run()
 {
-	QPixmap pixmap(m_vcc->width, m_vcc->height);
+	QPixmap pixmap(m_video_codeccontext->width, m_video_codeccontext->height);
 	int get_picture = 0;
 	while (true)
 	{
-		if (!m_is_play)
+		if (!m_is_run)
 		{
 			break;
 		}
+
+		get_picture = 0;
 
 		// 读一帧 <0 就说明读完了
-		if (av_read_frame(m_fc, m_avp) < 0)
+		if (av_read_frame(m_format_context, m_read_packct) < 0)
 		{
 			break;
 		}
 
+		int pts = m_read_packct->pts;
+
+		// 安全判断 确保解码的是视频流
+		if (m_read_packct->stream_index != m_videostream_idx)
+			continue;
+
 		// 解码一帧
-		int ret = avcodec_decode_video2(m_vcc, m_avfra, &get_picture, m_avp);
-
-		if (ret < 0)
-			break;
-
-		QImage& image = QImage(m_b, m_vcc->width, m_vcc->height, m_img_fmt);
+		int ret = avcodec_decode_video2(m_video_codeccontext, m_oriframe, &get_picture, m_read_packct);
+		// 如果 解码成功 并且 该帧为关键帧 才去转码
+		if (ret > 0 && get_picture > 0)
+		{
+			// 转码一帧
+			sws_scale(m_img_convert_ctx, m_oriframe->data, m_oriframe->linesize, 0, m_video_codeccontext->height, m_swsframe->data, m_swsframe->linesize);
+		}
+		
+		// 保持显示
+		QImage& image = QImage(m_frame_buffer, m_video_codeccontext->width, m_video_codeccontext->height, m_img_fmt);
 		QPixmap& pixmap = QPixmap::fromImage(image);
-		pixmap = pixmap.scaled(m_ss);
+		pixmap = pixmap.scaled(m_showsize);
 		emit collect_one_frame(pixmap, 0);
 	}
 	emit finish_collect_frame();
@@ -145,7 +161,9 @@ QWidget(p)
 	m_format_context = nullptr;
 	m_video_codeccontext = nullptr;
 	m_video_codec = nullptr;
-	m_frame = nullptr;
+	m_oriframe = nullptr;
+	m_swsframe = nullptr;
+	m_img_convert_ctx = nullptr;
 	m_frame_buffer = nullptr;
 	m_read_packct = nullptr;
 
@@ -190,14 +208,21 @@ void VideoPlayer_ffmpeg::play(const QString & video_path, video_or_gif sta, int 
 		return;
 	}
 
-	m_collector->play(m_video_codeccontext,
+	m_play_speed = playspeed;
+
+	m_collector->set_param(m_video_codeccontext,
 		m_format_context,
 		m_read_packct,
-		m_frame,
+		m_oriframe,
+		m_swsframe,
+		m_img_convert_ctx,
 		m_frame_buffer,
 		m_VideoPlayer_ffmpeg_kit->frame_displayer->size(),
 		m_image_fmt,
-		playspeed);
+		m_play_speed,
+		m_videostream_idx
+		);
+	m_collector->start();
 }
 
 void VideoPlayer_ffmpeg::enterEvent(QEvent* event)
@@ -236,22 +261,22 @@ bool VideoPlayer_ffmpeg::analysis_video()
 	}
 
 	// 寻找视频流的位置
-	int video_stream_index = -1;
+	m_videostream_idx = -1;
 	for (int i = 0; i < m_format_context->nb_streams; ++i)
 	{
 		if (m_format_context->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO)
 		{
-			video_stream_index = i;
+			m_videostream_idx = i;
 			break;
 		}
 	}
-	if (-1 == video_stream_index)
+	if (-1 == m_videostream_idx)
 	{
 		return false;
 	}
 
 	// 找到视频流的解码器内容
-	m_video_codeccontext = m_format_context->streams[video_stream_index]->codec;
+	m_video_codeccontext = m_format_context->streams[m_videostream_idx]->codec;
 	if (nullptr == m_video_codeccontext)
 	{
 		return false;
@@ -270,32 +295,40 @@ bool VideoPlayer_ffmpeg::analysis_video()
 		return false;
 	}
 
-	// 寻找对应的图像格式
-	switch (m_video_codeccontext->pix_fmt)
-	{
-	case AV_PIX_FMT_GRAY8:
-		m_image_fmt = QImage::Format_Grayscale8;
-		break;
-	case AV_PIX_FMT_RGB24:
-		m_image_fmt = QImage::Format_RGB888;
-		break; 
-	case AV_PIX_FMT_RGB32:
-		m_image_fmt = QImage::Format_RGB32;
-		break;
-	default:
-		break;
-	}
-
 	// 申请帧结构
-	m_frame = av_frame_alloc();
-	if (nullptr == m_frame)
+	m_oriframe = av_frame_alloc();
+	if (nullptr == m_oriframe)
+	{
+		return false;
+	}
+	m_swsframe = av_frame_alloc();
+	if (nullptr == m_swsframe)
 	{
 		return false;
 	}
 
+	// 图像格式转码器 YUV420 -> RGB24
+	m_img_convert_ctx = sws_getContext(
+		m_video_codeccontext->width,
+		m_video_codeccontext->height,
+		m_video_codeccontext->pix_fmt,
+		m_video_codeccontext->width,
+		m_video_codeccontext->height,
+		AV_PIX_FMT_GRAY8,
+		SWS_BICUBIC,
+		NULL,
+		NULL,
+		NULL
+		);
+	if (nullptr == m_img_convert_ctx)
+	{
+		return false;
+	}
+	m_image_fmt = QImage::Format_Grayscale8;
+
 	// 根据转存格式计算 一帧需要的字节数 取决于 格式、图像大小
 	int num_bytes = avpicture_get_size(
-		m_video_codeccontext->pix_fmt,
+		AV_PIX_FMT_GRAY8,
 		m_video_codeccontext->width,
 		m_video_codeccontext->height);
 	if (num_bytes <= 0)
@@ -310,7 +343,7 @@ bool VideoPlayer_ffmpeg::analysis_video()
 		return false;
 	}
 
-	int fill_succ = avpicture_fill((AVPicture*)m_frame, m_frame_buffer, m_video_codeccontext->pix_fmt,
+	int fill_succ = avpicture_fill((AVPicture*)m_swsframe, m_frame_buffer, AV_PIX_FMT_GRAY8,
 		m_video_codeccontext->width, m_video_codeccontext->height);
 	if (fill_succ < 0)
 	{
@@ -326,6 +359,8 @@ bool VideoPlayer_ffmpeg::analysis_video()
 	{
 		return false;
 	}
+
+	return true;
 }
 
 void VideoPlayer_ffmpeg::slot_show_one_frame(const QPixmap& pixmap, int prog)
@@ -363,7 +398,9 @@ void VideoPlayer_ffmpeg::slot_finish_collect_frame()
 	m_collector->stop();
 
 	av_free(m_frame_buffer);						// 清空缓冲区
-	av_free(m_frame);								// 清空帧格式
+	av_free(m_oriframe);							// 清空原始帧格式
+	av_free(m_swsframe);							// 清空转换帧格式
+	av_free_packet(m_read_packct);
 	avcodec_close(m_video_codeccontext);			// 关闭解码器
 	avformat_close_input(&m_format_context);		// 关闭视频属性
 

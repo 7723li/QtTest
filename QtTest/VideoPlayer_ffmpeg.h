@@ -30,6 +30,8 @@ extern "C"
 #include "externalFile/ffmpeg/include/libavutil/pixfmt.h"
 }
 
+typedef struct SwsContext SwsContext;
+
 /*
 @brief	通用视频、动图播放控件简介
 @author lzx
@@ -90,20 +92,23 @@ public:
 	~VideoPlayer_ffmpeg_FrameCollector(){}
 
 public:
-	void play(
+	void set_param(
 		AVCodecContext* vcc, 
 		AVFormatContext* fc,
 		AVPacket* avp,
 		AVFrame* avfra,
+		AVFrame* swfra,
+		SwsContext* img_con_ctx,
 		uint8_t* b,
 		QSize ss,
 		QImage::Format img_fmt,
-		int playspeed);
+		int playspeed,
+		int videostream_idx);
 	void pause();
 	void stop();
 
 protected:
-	virtual void run() override;
+	virtual void run();
 
 private:
 	void init();
@@ -113,15 +118,19 @@ signals:
 	void finish_collect_frame();
 
 private:
-	bool m_is_play;
-	AVCodecContext* m_vcc;
-	AVFormatContext* m_fc;
-	AVPacket* m_avp;
-	AVFrame* m_avfra;
-	uint8_t* m_b;
-	QSize m_ss;
+	AVCodecContext* m_video_codeccontext;
+	AVFormatContext* m_format_context;
+	AVPacket* m_read_packct;
+	AVFrame* m_oriframe;
+	AVFrame* m_swsframe;
+	SwsContext* m_img_convert_ctx;
+	uint8_t* m_frame_buffer;
+	QSize m_showsize;
 	QImage::Format m_img_fmt;
 	int m_playspeed;
+	int m_videostream_idx;
+
+	bool m_is_run;
 };
 
 /*
@@ -223,13 +232,16 @@ private:
 	AVFormatContext* m_format_context;			// 视频属性
 	AVCodecContext* m_video_codeccontext;		// 解码器属性
 	AVCodec* m_video_codec;						// 视频解码器
-	AVFrame* m_frame;							// 帧结构
+	AVFrame* m_oriframe;						// 用于从视频读取的原始帧结构
+	AVFrame* m_swsframe;						// 用于将 原始帧结构 转换成显示格式的 帧结构
+	SwsContext* m_img_convert_ctx;				// 用于转换图像格式的转换器
 	uint8_t* m_frame_buffer;					// 帧缓冲区
 	AVPacket* m_read_packct;					// 用于读取帧的数据包
+	QImage::Format m_image_fmt;					// 显示的图像格式RGB24
+	int m_play_speed;							// 播放速度
+	int m_videostream_idx;						// 视频流位置
 
 	VideoPlayer_ffmpeg_FrameCollector* m_collector;
-
-	QImage::Format m_image_fmt;
 
 	bool m_controller_always_hide;
 };
