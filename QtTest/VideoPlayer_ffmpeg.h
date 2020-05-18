@@ -15,6 +15,11 @@
 #include <QGraphicsEllipseItem>
 #include <QStackedWidget>
 #include <QMouseEvent>
+#include <QApplication>
+#include <QDesktopWidget>
+#include <QFileInfo>
+
+#include "PromptBox.h"
 
 extern "C"
 {
@@ -58,47 +63,6 @@ VideoPlayer_ffmpeg(播放器)----------------------------
 #define VideoPlayer_ffmpeg_PROCESS_ORDER
 
 class VideoPlayer_ffmpeg;
-class VideoPlayer_ffmpeg_ControlPanel;
-
-/*
-@brief
-视频控制面板包含控件
-*/
-typedef struct VideoPlayer_ffmpeg_ControlPanel_kit
-{
-public:
-	explicit VideoPlayer_ffmpeg_ControlPanel_kit(VideoPlayer_ffmpeg_ControlPanel* p);
-	~VideoPlayer_ffmpeg_ControlPanel_kit(){}
-
-public:
-	QSlider* slider;										// 播放进度条
-	QPushButton* play_or_pause_btn;							// 播放暂停按钮
-	QLabel* video_playtime;									// 视频播放时间
-	QLabel* video_sumtime;									// 视频总时长
-	QComboBox* play_speed_box;								// 倍速选择
-
-	QPushButton* delete_btn;								// 删除视频
-	QPushButton* shear_btn;									// 剪切视频
-	QStackedWidget* func_button_list;						// 功能键列表
-
-	using scrsh_pnt_list = std::map<QGraphicsEllipseItem*, QPoint>;
-	scrsh_pnt_list screenshot_pnt_list;						// 截图点列表
-}
-VideoPlayer_ffmpeg_Controler_ket;
-
-/*
-@brief
-视频控制面板
-*/
-class VideoPlayer_ffmpeg_ControlPanel : public QSlider
-{
-public:
-	explicit VideoPlayer_ffmpeg_ControlPanel(VideoPlayer_ffmpeg* p);
-	~VideoPlayer_ffmpeg_ControlPanel(){}
-
-private:
-	VideoPlayer_ffmpeg_ControlPanel_kit* m_control_kit;
-};
 
 /*
 @brief
@@ -125,22 +89,66 @@ public:
 	explicit VideoPlayer_ffmpeg_FrameCollector(VideoPlayer_ffmpeg* p = nullptr);
 	~VideoPlayer_ffmpeg_FrameCollector(){}
 
-	void set_videoname(const QString& videoname);
-	void set_playspeed(int speed);
-	void set_show_size(QSize size);
+public:
+	void play(
+		AVCodecContext* vcc, 
+		AVFormatContext* fc,
+		AVPacket* avp,
+		AVFrame* avfra,
+		uint8_t* b,
+		QSize ss,
+		QImage::Format img_fmt,
+		int playspeed);
+	void pause();
+	void stop();
 
 protected:
 	virtual void run() override;
+
+private:
+	void init();
 
 signals:
 	void collect_one_frame(const QPixmap& pixmap, int prog);
 	void finish_collect_frame();
 
 private:
-	QString m_videoname;
+	bool m_is_play;
+	AVCodecContext* m_vcc;
+	AVFormatContext* m_fc;
+	AVPacket* m_avp;
+	AVFrame* m_avfra;
+	uint8_t* m_b;
+	QSize m_ss;
+	QImage::Format m_img_fmt;
 	int m_playspeed;
-	QSize m_showsize;
 };
+
+/*
+@brief
+视频控制面板包含控件
+*/
+typedef struct VideoPlayer_ffmpeg_ControlPanel_kit : public QWidget
+{
+public:
+	explicit VideoPlayer_ffmpeg_ControlPanel_kit(QLabel* p);
+	~VideoPlayer_ffmpeg_ControlPanel_kit(){}
+
+public:
+	QSlider* slider;										// 播放进度条
+	QPushButton* play_or_pause_btn;							// 播放暂停按钮
+	QLabel* video_playtime;									// 视频播放时间
+	QLabel* video_sumtime;									// 视频总时长
+	QComboBox* play_speed_box;								// 倍速选择
+
+	QStackedWidget* func_button_list;						// 功能键列表
+	QPushButton* delete_btn;								// 删除视频
+	QPushButton* shear_btn;									// 剪切视频
+
+	using scrsh_pnt_list = std::map<QGraphicsEllipseItem*, QPoint>;
+	scrsh_pnt_list screenshot_pnt_list;						// 截图点列表
+}
+VideoPlayer_ffmpeg_Controler_kit;
 
 /*
 @brief
@@ -153,7 +161,7 @@ public:
 
 public:
 	QLabel* frame_displayer;								// 帧显示器
-	VideoPlayer_ffmpeg_ControlPanel* controler;				// 控制面板
+	VideoPlayer_ffmpeg_ControlPanel_kit* controler;			// 控制面板
 }
 VideoPlayer_ffmpeg_kit;
 
@@ -166,18 +174,29 @@ class VideoPlayer_ffmpeg :public QWidget
 	Q_OBJECT
 
 public:
+	typedef enum class video_or_gif
+	{
+		VideoStyle = 0,			// 视频样式
+		GifStyle				// 动图样式
+	}
+	video_or_gif;
+
+public:
 	explicit VideoPlayer_ffmpeg(QWidget* p = nullptr);
 	~VideoPlayer_ffmpeg();
 
-public:
-	void play(const QString & video_name);
+public slots:
+	void play(const QString & video_path, 
+		video_or_gif sta = video_or_gif::VideoStyle,
+		int playspeed = 1);
 
 protected:
 	void enterEvent(QEvent* event);
 	void leaveEvent(QEvent* event);
 
 private:
-	void change_play_time();
+	void init_ffmpeg();				// 初始化ffmpeg库
+	bool analysis_video();			// 解析视频	并在启动帧采集线程前分配资源
 
 private slots:
 	void slot_show_one_frame(const QPixmap& pixmap, int prog);
@@ -197,10 +216,20 @@ private slots:
 signals:
 	void play_finish();
 
-private:
-	VideoPlayer_ffmpeg_FrameCollector* m_collector;
-	
+private:	
 	VideoPlayer_ffmpeg_kit* m_VideoPlayer_ffmpeg_kit;
 
-	QImage m_image;
+	QString m_video_path;						// 视频路径
+	AVFormatContext* m_format_context;			// 视频属性
+	AVCodecContext* m_video_codeccontext;		// 解码器属性
+	AVCodec* m_video_codec;						// 视频解码器
+	AVFrame* m_frame;							// 帧结构
+	uint8_t* m_frame_buffer;					// 帧缓冲区
+	AVPacket* m_read_packct;					// 用于读取帧的数据包
+
+	VideoPlayer_ffmpeg_FrameCollector* m_collector;
+
+	QImage::Format m_image_fmt;
+
+	bool m_controller_always_hide;
 };

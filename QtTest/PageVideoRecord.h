@@ -182,7 +182,7 @@ public slots:
 	void exit_PageVideoRecord();
 
 protected:
-	virtual void keyPressEvent(QKeyEvent* e);
+	void keyPressEvent(QKeyEvent* e);
 
 private:
 	void clear_videodisplay();								// 清理图像显示区域

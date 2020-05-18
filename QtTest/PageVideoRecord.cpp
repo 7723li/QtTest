@@ -198,6 +198,7 @@ PageVideoRecord::PageVideoRecord(QWidget* parent) :
 	m_ready_record_hint(QStringLiteral("准备录像中.."))
 {
 	this->setStyleSheet("background-color: rgb(251,251,251);");
+	this->setFocusPolicy(Qt::ClickFocus);
 	//this->setObjectName("widgetBottomShelter");
 
 	m_PageVideoRecord_kit = new PageVideoRecord_kit(this);
@@ -207,7 +208,7 @@ PageVideoRecord::PageVideoRecord(QWidget* parent) :
 	connect(m_PageVideoRecord_kit->videoplayer, &VideoPlayer_ffmpeg::play_finish, this, &PageVideoRecord::slot_replay_finish);
 
 	m_tranpicthr = new TransformPicture(this);
-	connect(m_tranpicthr, &TransformPicture::show_one_frame, this, &PageVideoRecord::slot_show_one_frame);
+	connect(m_tranpicthr, &TransformPicture::show_one_frame, this, &PageVideoRecord::slot_show_one_frame, Qt::DirectConnection);
 
 	m_record_duration_timer = new QTimer(this);
 	m_record_duration_timer->setTimerType(Qt::TimerType::PreciseTimer);
@@ -442,7 +443,7 @@ void PageVideoRecord::slot_show_one_frame(QPixmap& _pixmap)
 	{
 		QPainter painter(&_pixmap);
 		painter.setPen(Qt::blue);
-		painter.drawText(QRect(0, 0, 20, 5), QString::number(m_framerate));
+		painter.drawText(QRect(0, 0, 200, 40),QString("fps : ") + QString::number(m_framerate));
 	}
 
 	m_PageVideoRecord_kit->frame_displayer->setPixmap(_pixmap);
@@ -554,6 +555,7 @@ void PageVideoRecord::slot_replay_begin(QListWidgetItem* choosen_video)
 	}
 
 	m_PageVideoRecord_kit->video_list->setEnabled(false);				// 回播期间 避免出bug 不允许点击其他视频
+	m_PageVideoRecord_kit->videoplayer->show();
 	m_PageVideoRecord_kit->videoplayer->play(video_name_iter->second);	// 开始播放视频
 }
 void PageVideoRecord::slot_replay_finish()
