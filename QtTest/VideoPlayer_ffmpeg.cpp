@@ -253,12 +253,16 @@ void VideoPlayer_ffmpeg_FrameCollector::run()
 			// 转码一帧
 			sws_scale(m_img_convert_ctx, m_oriframe->data, m_oriframe->linesize, 0, m_video_codeccontext->height, m_swsframe->data, m_swsframe->linesize);
 		}
+
+		cv::Mat a(cv::Size(m_video_codeccontext->width, m_video_codeccontext->height), CV_8UC3, m_frame_buffer);
+		cv::Mat b(cv::Size(m_showsize.width(), m_showsize.height()), CV_8UC3);
+		cv::resize(a, b, cv::Size(b.cols, b.rows), 0, 0);
 		
 		// 保持显示
-		QImage& image = QImage(m_frame_buffer, m_video_codeccontext->width, m_video_codeccontext->height, m_image_fmt);
+		//QImage& image = QImage(m_frame_buffer, m_video_codeccontext->width, m_video_codeccontext->height, m_image_fmt);
 		//image = image.scaled(m_showsize);
-		image = image.scaledToWidth(m_showsize.width());
-		emit collect_one_frame(image);
+		//image = image.scaledToWidth(m_showsize.width());
+		emit collect_one_frame(b);
 
 		int play_second = m_read_packct->pts * time_base;
 		if (play_second != now_second)
@@ -268,6 +272,7 @@ void VideoPlayer_ffmpeg_FrameCollector::run()
 		}
 		clock_t end = clock();
 		qDebug() << "analy one frame time : " << end - begin;
+		::Sleep(3);
 	}
 	emit finish_collect_frame();
 }
@@ -315,11 +320,11 @@ QWidget(p)
 VideoPlayer_ffmpeg_kit::VideoPlayer_ffmpeg_kit(VideoPlayer_ffmpeg* p) 
 {
 	frame_displayer = new QLabel(p);
-	frame_displayer->setGeometry(0, 0, 900, 900);
+	frame_displayer->setGeometry(0, 0, 1032, 771);
 	frame_displayer->show();
 
 	controler = new VideoPlayer_ffmpeg_ControlPanel_kit(frame_displayer);
-	controler->setGeometry(0, 750, 900, 150);
+	controler->setGeometry(0, 621, 1032, 150);
 	controler->hide();
 }
 
@@ -329,6 +334,8 @@ VideoPlayer_ffmpeg_kit::VideoPlayer_ffmpeg_kit(VideoPlayer_ffmpeg* p)
 VideoPlayer_ffmpeg::VideoPlayer_ffmpeg(QWidget* p) :
 QWidget(p)
 {
+	qRegisterMetaType<cv::Mat>("cv::Mat");
+
 	this->setFocusPolicy(Qt::ClickFocus);
 	this->hide();
 
@@ -426,9 +433,10 @@ void VideoPlayer_ffmpeg::clear_videodisplayer()
 	m_VideoPlayer_ffmpeg_kit->frame_displayer->setPixmap(QPixmap::fromImage(pure_dark_image));
 }
 
-void VideoPlayer_ffmpeg::slot_show_one_frame(const QImage& image)
+void VideoPlayer_ffmpeg::slot_show_one_frame(const cv::Mat image)
 {
-	const QPixmap& toshow_pixmap = QPixmap::fromImage(image);
+	QImage _image(image.data, image.cols, image.rows, QImage::Format_RGB888);
+	const QPixmap& toshow_pixmap = QPixmap::fromImage(_image);
 	m_VideoPlayer_ffmpeg_kit->frame_displayer->setPixmap(toshow_pixmap);
 }
 void VideoPlayer_ffmpeg::slot_playtime_changed(int sec)

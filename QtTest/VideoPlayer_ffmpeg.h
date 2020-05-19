@@ -21,8 +21,12 @@
 #include <QKeyEvent>
 #include <QTime>
 #include <QPainter>
+#include <QMetaType>
 
 #include "PromptBox.h"
+#include "externalFile/opencv/include/opencv2/core/core.hpp"
+#include "externalFile/opencv/include/opencv2/core/mat.hpp"
+#include "externalFile/opencv/include/opencv2/imgproc/imgproc.hpp"
 
 extern "C"
 {
@@ -124,7 +128,7 @@ signals:
 	@param[1] image 已经转换了格式和大小的图像 可用于显示 QImage
 	@param[2] prog	播放进度(单位:秒)
 	*/
-	void collect_one_frame(const QImage& image);
+	void collect_one_frame(const cv::Mat image);
 	/*
 	@brief
 	进度条 +1s 播放时间
@@ -242,7 +246,7 @@ private:
 	void clear_videodisplayer();
 
 private slots:
-	void slot_show_one_frame(const QImage& image);
+	void slot_show_one_frame(const cv::Mat image);
 	void slot_playtime_changed(int sec);
 
 	/*
