@@ -19,6 +19,8 @@
 #include <QDesktopWidget>
 #include <QFileInfo>
 #include <QKeyEvent>
+#include <QTime>
+#include <QPainter>
 
 #include "PromptBox.h"
 
@@ -69,7 +71,8 @@ class VideoPlayer_ffmpeg;
 @brief
 流数据处理器 用于获取视频 以及 从视频获取图像 并转换图像格式
 @note
-使用ffmpeg将视频分割成视频音频流 并将帧数据通过信号发射出去
+1、使用ffmpeg将视频分割成视频音频流 并将帧数据通过信号发射出去
+2、important!!! 每次播放完毕 或 关闭播放窗口 都必须意味着本线程被终结!!!
 */
 class VideoPlayer_ffmpeg_FrameCollector : public QThread
 {
@@ -80,7 +83,17 @@ public:
 	~VideoPlayer_ffmpeg_FrameCollector(){}
 
 public:
-	bool init(const QString& video_path,
+	/*
+	@brief
+	根据输入的视频路径 初始化ffmpeg运行环境
+	@param[1] video_path	输入的视频路径			QString
+	@param[2] show_size		图像缩放到显示的大小		QSize
+	@param[3] playspeed		播放速度 默认为1			int
+	@return 返回值 int
+	<0		初始化失败
+	other	视频总时长(单位:秒)
+	*/
+	int init(const QString& video_path,
 		QSize show_size,
 		int playspeed = 1);
 
@@ -88,6 +101,7 @@ public slots:
 	void play();
 	void pause();
 	void stop();
+	void leap(int pos);
 
 public:
 	bool playing();
@@ -97,15 +111,35 @@ protected:
 	virtual void run();
 
 private:
+	/*!
+	@brief
+	释放使用到的视频资源
+	*/
 	void free_src();
 
 signals:
-	void collect_one_frame(const QPixmap& pixmap, int prog);
+	/*
+	@brief
+	采集到一帧的信号
+	@param[1] image 已经转换了格式和大小的图像 可用于显示 QImage
+	@param[2] prog	播放进度(单位:秒)
+	*/
+	void collect_one_frame(const QImage& image);
+	/*
+	@brief
+	进度条 +1s 播放时间
+	*/
+	void playtime_changed(int sec);
+	/*
+	@brief
+	采集停止的信号 表示视频播放结束
+	*/
 	void finish_collect_frame();
 
 private:
 	AVFormatContext* m_format_context;			// 视频属性
 	AVCodecContext* m_video_codeccontext;		// 解码器属性
+	AVStream* m_videostream;					// 视频流
 	AVCodec* m_video_codec;						// 视频解码器
 	AVFrame* m_oriframe;						// 用于从视频读取的原始帧结构
 	AVFrame* m_swsframe;						// 用于将 原始帧结构 转换成显示格式的 帧结构
@@ -117,6 +151,9 @@ private:
 	QSize m_showsize;							// 显示窗口大小
 	int m_videostream_idx;						// 视频流位置
 	int m_play_speed;							// 播放速度
+	int m_framenum;								// 总帧数
+	int m_fps;									// 视频帧率
+	int m_video_second;							// 视频秒数
 
 	bool m_is_thred_run;
 
@@ -194,6 +231,7 @@ public slots:
 	void set_media(const QString & video_path, 
 		video_or_gif sta = video_or_gif::VideoStyle,
 		int playspeed = 1);
+	//void set_playrange(int begin, int end);
 
 protected:
 	void enterEvent(QEvent* event);
@@ -204,13 +242,21 @@ private:
 	void clear_videodisplayer();
 
 private slots:
-	void slot_show_one_frame(const QPixmap& pixmap, int prog);
+	void slot_show_one_frame(const QImage& image);
+	void slot_playtime_changed(int sec);
 
+	/*
+	@brief
+	播放暂停
+	*/
 	void slot_play_or_pause();
+	/*
+	@brief
+	点击进度条跳转
+	*/
+	void slot_video_leap();
 
 	void slot_finish_collect_frame();
-
-	void slot_video_leap();
 
 	void slot_change_playspeed();
 

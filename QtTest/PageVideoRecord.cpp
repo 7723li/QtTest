@@ -2,22 +2,24 @@
 
 const QString g_test_picname = "./test.jpg";
 const QString g_test_videoname = "./test.avi";
-static QMutex g_mutex;
 
 CameraCapture::CameraCapture(PageVideoRecord* p) : 
-QThread(p), m_need_capture(false), m_need_record(false),
-m_cam(nullptr), m_mat(nullptr), m_writer(nullptr)
+QThread(p), 
+m_need_capture(false), m_need_record(false),
+m_camerabase(nullptr), m_pMat(nullptr), m_writer(nullptr), m_mutex(nullptr)
 {
 
 }
-bool CameraCapture::begin_capture(camerabase* c, cv::Mat* m, cv::VideoWriter* v)
+
+bool CameraCapture::begin_capture(camerabase* c, cv::Mat* pMat, cv::VideoWriter* v, QMutex* mt)
 {
-	if (!(c && m && v))
+	if (!(c && pMat && v && mt))
 		return false;
 
-	m_cam = c;
-	m_mat = m;
+	m_camerabase = c;
+	m_pMat = pMat;
 	m_writer = v;
+	m_mutex = mt;
 
 	m_need_capture = true;
 
@@ -56,15 +58,15 @@ void CameraCapture::run()
 			break;
 		}
 
-		g_mutex.lock();
-		bool is_get_frame_success = m_cam->get_one_frame(*m_mat);
-		g_mutex.unlock();
+		m_mutex->lock();
+		bool is_get_frame_success = m_camerabase->get_one_frame(*m_pMat);
+		m_mutex->unlock();
 
 		if (is_get_frame_success)
 		{
 			if (m_need_record)
 			{
-				m_writer->write(*m_mat);
+				m_writer->write(*m_pMat);
 			}
 			else
 			{
@@ -73,71 +75,12 @@ void CameraCapture::run()
 		}
 		else
 		{
-			::Sleep(3);
+			this->msleep(3);
 		}
 	}
 }
 
-TransformPicture::TransformPicture(PageVideoRecord* p):
-QThread(p), m_run(false)
-{
 
-}
-bool TransformPicture::begin_transform(cv::Mat* mat, QSize qs, double st)
-{
-	if (nullptr == mat || mat->empty() || qs.width() <= 0 || qs.height() <= 0)
-	{
-		return false;
-	}
-
-	m_mat = mat;
-	m_show_size = qs;
-	m_sleep_time = st;
-	m_run = true;
-
-	switch (m_mat->type())
-	{
-	case CV_8UC1:
-		m_fmt = QImage::Format_Grayscale8;
-		break;
-	case CV_8UC3:
-		m_fmt = QImage::Format_RGB888;
-		break;
-	case CV_8UC4:
-		m_fmt = QImage::Format_RGB32;
-		break;
-	default:
-		m_fmt = QImage::Format_Grayscale8;
-		break;
-	}
-
-	return true;
-}
-void TransformPicture::stop_transform()
-{
-	m_run = false;
-	this->wait();
-}
-void TransformPicture::run()
-{
-	while (true)
-	{
-		if (false == m_run)
-		{
-			break;
-		}
-
-		g_mutex.lock();
-		QImage& image = QImage(m_mat->data, m_mat->cols, m_mat->rows, m_fmt);
-		g_mutex.unlock();
-
-		QPixmap& pix = QPixmap::fromImage(image);
-		pix = pix.scaled(m_show_size);
-		emit show_one_frame(pix);
-
-		::Sleep(m_sleep_time);
-	}
-}
 
 PageVideoRecord_kit::PageVideoRecord_kit(PageVideoRecord* p)
 {
@@ -193,6 +136,8 @@ PageVideoRecord_kit::PageVideoRecord_kit(PageVideoRecord* p)
 	videoplayer->setGeometry(100, 100, 1000, 1000);
 }
 
+
+
 PageVideoRecord::PageVideoRecord(QWidget* parent) :
 	QWidget(parent),
 	m_ready_record_hint(QStringLiteral("准备录像中.."))
@@ -207,8 +152,8 @@ PageVideoRecord::PageVideoRecord(QWidget* parent) :
 	connect(m_PageVideoRecord_kit->video_list, &VideoListWidget::video_choosen, this, &PageVideoRecord::slot_replay_begin);
 	connect(m_PageVideoRecord_kit->videoplayer, &VideoPlayer_ffmpeg::play_finish, this, &PageVideoRecord::slot_replay_finish);
 
-	m_tranpicthr = new TransformPicture(this);
-	connect(m_tranpicthr, &TransformPicture::show_one_frame, this, &PageVideoRecord::slot_show_one_frame, Qt::DirectConnection);
+	m_show_frame_timer = new QTimer(this);
+	connect(m_show_frame_timer, &QTimer::timeout, this, &PageVideoRecord::slot_show_one_frame);
 
 	m_record_duration_timer = new QTimer(this);
 	m_record_duration_timer->setTimerType(Qt::TimerType::PreciseTimer);
@@ -246,7 +191,7 @@ void PageVideoRecord::enter_PageVideoRecord(const QString & examid)
 	{
 		int w = 0, h = 0;
 		m_camerabase->get_frame_wh(w, h);
-		m_mat = cv::Mat::zeros(w, h, CV_8UC1);	// 分配帧空间大小
+		m_mat = cv::Mat::zeros(w, h, CV_8UC1);	// 初始化Mat 分配帧空间大小
 
 		begin_capture();						// 开启捕捉线程 开始捕捉图像
 		begin_collect_fps();					// 开始收集fps
@@ -402,7 +347,7 @@ void PageVideoRecord::show_camera_closestatus(int closestatus)
 
 void PageVideoRecord::begin_capture()
 {
-	bool succ = m_video_capture->begin_capture(m_camerabase, &m_mat, &m_VideoWriter);
+	bool succ = m_video_capture->begin_capture(m_camerabase, &m_mat, &m_VideoWriter, &m_mutex);
 	if (succ)
 	{
 		m_video_capture->start();
@@ -425,28 +370,28 @@ void PageVideoRecord::stop_collect_fps()
 
 void PageVideoRecord::begin_show_frame()
 {
-	QSize show_size = m_PageVideoRecord_kit->frame_displayer->size();
-	double sleep_time = (double)1000 / 30;
-	bool succ = m_tranpicthr->begin_transform(&m_mat, show_size, sleep_time);
-	if (succ)
-	{
-		m_tranpicthr->start();
-	}
+	m_show_frame_timer->start(33);		// 显示帧率固定在30帧
 }
 void PageVideoRecord::stop_show_frame()
 {
-	m_tranpicthr->stop_transform();
+	m_show_frame_timer->stop();
 }
-void PageVideoRecord::slot_show_one_frame(QPixmap& _pixmap)
+void PageVideoRecord::slot_show_one_frame()
 {
+	m_mutex.lock();
+	QImage& _image = QImage(m_mat.data, m_mat.cols, m_mat.rows, QImage::Format_Grayscale8);
+	m_mutex.unlock();
+
+	QPixmap& _pixmap = QPixmap::fromImage(_image);
+	QPixmap& scale_pixmap = _pixmap.scaled(m_PageVideoRecord_kit->frame_displayer->size());
 	if (m_is_show_framerate)
 	{
-		QPainter painter(&_pixmap);
+		QPainter painter(&scale_pixmap);
 		painter.setPen(Qt::blue);
 		painter.drawText(QRect(0, 0, 200, 40),QString("fps : ") + QString::number(m_framerate));
 	}
 
-	m_PageVideoRecord_kit->frame_displayer->setPixmap(_pixmap);
+	m_PageVideoRecord_kit->frame_displayer->setPixmap(scale_pixmap);
 }
 
 void PageVideoRecord::begin_record()
@@ -554,11 +499,24 @@ void PageVideoRecord::slot_replay_begin(QListWidgetItem* choosen_video)
 		return;
 	}
 
-	m_PageVideoRecord_kit->video_list->setEnabled(false);				// 回播期间 避免出bug 不允许点击其他视频
+	m_PageVideoRecord_kit->video_list->setEnabled(false);					// 回播期间 避免出bug 不允许点击其他视频
+
+	//stop_capture();							// 关闭捕捉线程 取消捕捉
+	//stop_show_frame();						// 关闭图像转换线程 取消显示
+	//m_camerabase->closeCamera();			// 关闭摄像头
+	//stop_collect_fps();						// 停止采集fps
+
 	m_PageVideoRecord_kit->videoplayer->show();
 	m_PageVideoRecord_kit->videoplayer->set_media(video_name_iter->second);	// 开始播放视频
 }
 void PageVideoRecord::slot_replay_finish()
 {
 	m_PageVideoRecord_kit->video_list->setEnabled(true);				// 回播完 我房间里有些其他好康的
+
+	//if (m_camerabase->openCamera() == camerabase::OpenSuccess)			// 打开成功
+	//{
+	//	begin_capture();						// 开启捕捉线程 开始捕捉图像
+	//	begin_collect_fps();					// 开始收集fps
+	//	begin_show_frame();						// 开启转换线程 开始显示图像
+	//}
 }

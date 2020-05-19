@@ -21,6 +21,8 @@
 #include <QPainter>
 #include <QString>
 #include <QKeyEvent>
+#include <QThread>
+#include <QMutex>
 
 #include "externalFile/opencv/include/opencv2/opencv.hpp"
 
@@ -48,7 +50,7 @@ public:
 	*/
 	CameraCapture(PageVideoRecord* p);
 	~CameraCapture(){}
-
+	
 	/*
 	@brief
 	开始获取图像
@@ -56,7 +58,7 @@ public:
 	@param[2] m 录制界面 ->已经分配好<- 的帧空间 cv::Mat*
 	@param[3] v 录制界面的VideoWriter cv::VideoWriter*
 	*/
-	bool begin_capture(camerabase* c, cv::Mat* m, cv::VideoWriter* v);
+	bool begin_capture(camerabase* c, cv::Mat* m_pMat, cv::VideoWriter* v, QMutex* mt);
 	/*
 	@brief
 	停止获取图像
@@ -65,12 +67,12 @@ public:
 
 	/*
 	@brief
-	尝试开始录制
+	开始录制
 	*/
 	void begin_record();
 	/*
 	@brief
-	尝试停止录制
+	停止录制
 	*/
 	void stop_record();
 
@@ -91,44 +93,20 @@ public:
 	bool recording();
 
 private:
+	/*
+	@brief
+	QThread线程启动后的执行部分
+	*/
 	virtual void run() override;
 
 private:
 	bool m_need_capture;
 	bool m_need_record;
 
-	camerabase* m_cam;
-	cv::Mat* m_mat;
+	camerabase* m_camerabase;
+	cv::Mat* m_pMat;
 	cv::VideoWriter* m_writer;
-};
-
-/*
-@brief
-录制界面的图像格式转换子线程
-Mat->QPixmap 并 缩放到显示窗口的尺寸
-*/
-class TransformPicture : public QThread
-{
-	Q_OBJECT
-
-public:
-	TransformPicture(PageVideoRecord* p);
-	~TransformPicture(){}
-
-	bool begin_transform(cv::Mat* mat, QSize qs, double st);
-	void stop_transform();
-private:
-	virtual void run() override;
-
-signals:
-	void show_one_frame(QPixmap& image);
-
-private:
-	QSize m_show_size;
-	double m_sleep_time;
-	bool m_run;
-	cv::Mat* m_mat;
-	QImage::Format m_fmt;
+	QMutex* m_mutex;
 };
 
 /*
@@ -212,7 +190,7 @@ private:
 	void stop_show_recordtime();							// 停止显示录制时间
 
 private slots:
-	void slot_show_one_frame(QPixmap& _pixmap);				// 显示图像槽函数
+	void slot_show_one_frame();								// 显示图像槽函数
 
 	void slot_begin_or_finish_record();						// 开始(结束)录制视频
 
@@ -237,7 +215,7 @@ private:
 	QString m_video_thumb_path;								// 录制视频的缩略图的保存路径
 	const QString m_ready_record_hint;						// 准备录像中...
 
-	TransformPicture* m_tranpicthr;							// Mat->Pixmap图像格式转换子线程 (transform picture format thread)
+	QTimer* m_show_frame_timer;								// 用于显示一帧的定时器
 
 	QTimer* m_record_duration_timer;						// 用于记录录像时长的定时器
 	QTime m_record_duration_period;							// 录像时长 每次定时器溢出自加1
@@ -246,9 +224,10 @@ private:
 	bool m_is_show_framerate;								// 是否在帧显示器上显示fps
 	double m_framerate;										// 当前相机的fps
 
-	cv::Mat m_mat;											// 帧数据缓存
+	cv::Mat m_mat;											// Mat -> QImage -> QPixmap -> QLabel
 	cv::VideoWriter m_VideoWriter;							// 将Mat写入到视频
 	CameraCapture* m_video_capture;							// 捕捉影像的子线程
+	QMutex m_mutex;											// 子线程负责写 主线程负责读 尽量避免冲突
 
 	camerabase* m_camerabase;								// 相机封装 通用相机接口
 	AVTCamera* m_avt_camera;								// AVT相机
