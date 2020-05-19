@@ -8,8 +8,8 @@ QThread(p)
 	m_format_context = nullptr;
 	m_video_codeccontext = nullptr;
 	m_video_codec = nullptr;
-	m_oriframe = nullptr;
-	m_swsframe = nullptr;
+	m_orifmt_frame = nullptr;
+	m_swsfmt_frame = nullptr;
 	m_img_convert_ctx = nullptr;
 	m_frame_buffer = nullptr;
 	m_read_packct = nullptr;
@@ -60,6 +60,12 @@ int VideoPlayer_ffmpeg_FrameCollector::init(const QString& video_path, QSize sho
 		return -1;
 	}
 
+	// 获取帧率
+	m_fps = av_q2d(m_videostream->r_frame_rate);
+
+	// 计算 每帧的理论单独处理时间
+	m_proctime_perframe = (double)1000 / (double)m_fps;
+
 	// 找到视频流的解码器内容
 	m_video_codeccontext = m_videostream->codec;
 	if (nullptr == m_video_codeccontext)
@@ -81,13 +87,13 @@ int VideoPlayer_ffmpeg_FrameCollector::init(const QString& video_path, QSize sho
 	}
 
 	// 申请帧结构
-	m_oriframe = av_frame_alloc();
-	if (nullptr == m_oriframe)
+	m_orifmt_frame = av_frame_alloc();
+	if (nullptr == m_orifmt_frame)
 	{
 		return -1;
 	}
-	m_swsframe = av_frame_alloc();
-	if (nullptr == m_swsframe)
+	m_swsfmt_frame = av_frame_alloc();
+	if (nullptr == m_swsfmt_frame)
 	{
 		return -1;
 	}
@@ -128,7 +134,7 @@ int VideoPlayer_ffmpeg_FrameCollector::init(const QString& video_path, QSize sho
 		return -1;
 	}
 
-	int fill_succ = avpicture_fill((AVPicture*)m_swsframe, m_frame_buffer, AV_PIX_FMT_RGB24,
+	int fill_succ = avpicture_fill((AVPicture*)m_swsfmt_frame, m_frame_buffer, AV_PIX_FMT_RGB24,
 		m_video_codeccontext->width, m_video_codeccontext->height);
 	if (fill_succ < 0)
 	{
@@ -195,8 +201,8 @@ bool VideoPlayer_ffmpeg_FrameCollector::pausing()
 void VideoPlayer_ffmpeg_FrameCollector::free_src()
 {
 	av_free(m_frame_buffer);						// 清空缓冲区
-	av_free(m_oriframe);							// 清空原始帧格式
-	av_free(m_swsframe);							// 清空转换帧格式
+	av_free(m_orifmt_frame);							// 清空原始帧格式
+	av_free(m_swsfmt_frame);							// 清空转换帧格式
 	av_free_packet(m_read_packct);
 	avcodec_close(m_video_codeccontext);			// 关闭解码器
 	avformat_close_input(&m_format_context);		// 关闭视频属性
@@ -208,8 +214,8 @@ void VideoPlayer_ffmpeg_FrameCollector::free_src()
 	m_format_context = nullptr;
 	m_video_codeccontext = nullptr;
 	m_video_codec = nullptr;
-	m_oriframe = nullptr;
-	m_swsframe = nullptr;
+	m_orifmt_frame = nullptr;
+	m_swsfmt_frame = nullptr;
 	m_img_convert_ctx = nullptr;
 	m_frame_buffer = nullptr;
 	m_read_packct = nullptr;
@@ -246,33 +252,39 @@ void VideoPlayer_ffmpeg_FrameCollector::run()
 			continue;
 
 		// 解码一帧
-		int ret = avcodec_decode_video2(m_video_codeccontext, m_oriframe, &get_picture, m_read_packct);
+		int ret = avcodec_decode_video2(m_video_codeccontext, m_orifmt_frame, &get_picture, m_read_packct);
 		// 如果 解码成功(ret > 0) 并且 该帧为关键帧(get_picture > 0) 才去转码
 		if (ret > 0 && get_picture > 0)
 		{
-			// 转码一帧
-			sws_scale(m_img_convert_ctx, m_oriframe->data, m_oriframe->linesize, 0, m_video_codeccontext->height, m_swsframe->data, m_swsframe->linesize);
+			// 转码一帧格式
+			sws_scale(m_img_convert_ctx, m_orifmt_frame->data, m_orifmt_frame->linesize, 0, m_video_codeccontext->height, m_swsfmt_frame->data, m_swsfmt_frame->linesize);
 		}
 
-		cv::Mat a(cv::Size(m_video_codeccontext->width, m_video_codeccontext->height), CV_8UC3, m_frame_buffer);
-		cv::Mat b(cv::Size(m_showsize.width(), m_showsize.height()), CV_8UC3);
-		cv::resize(a, b, cv::Size(b.cols, b.rows), 0, 0);
+		// 缩放大小
+		cv::Mat orisize_frame(cv::Size(m_video_codeccontext->width, m_video_codeccontext->height), CV_8UC3, m_frame_buffer);
+		cv::Mat swssize_frame(cv::Size(m_showsize.width(), m_showsize.height()), CV_8UC3);
+		cv::resize(orisize_frame, swssize_frame, cv::Size(swssize_frame.cols, swssize_frame.rows), 0, 0);
 		
 		// 保持显示
-		//QImage& image = QImage(m_frame_buffer, m_video_codeccontext->width, m_video_codeccontext->height, m_image_fmt);
-		//image = image.scaled(m_showsize);
-		//image = image.scaledToWidth(m_showsize.width());
-		emit collect_one_frame(b);
+		emit collect_one_frame(swssize_frame);
 
+		// 进度条一秒一换 避免频繁切换
 		int play_second = m_read_packct->pts * time_base;
 		if (play_second != now_second)
 		{
 			emit playtime_changed(play_second);
 			now_second = play_second;
 		}
+
+		// 计算这一帧实际处理时间
 		clock_t end = clock();
-		qDebug() << "analy one frame time : " << end - begin;
-		::Sleep(3);
+		clock_t this_frame_proc_time = end - begin;
+
+		// 实际单帧处理时间 比 理论单帧处理时间还要长 说明状态不太对 有内鬼!!!
+		if (this_frame_proc_time < m_proctime_perframe)
+		{
+			::Sleep(m_proctime_perframe - this_frame_proc_time);
+		}
 	}
 	emit finish_collect_frame();
 }
@@ -340,8 +352,11 @@ QWidget(p)
 	this->hide();
 
 	m_VideoPlayer_ffmpeg_kit = new VideoPlayer_ffmpeg_kit(this);
-	connect(m_VideoPlayer_ffmpeg_kit->controler->slider, &QSlider::sliderPressed, this, &VideoPlayer_ffmpeg::slot_video_leap);
+	connect(m_VideoPlayer_ffmpeg_kit->controler->slider, &QSlider::sliderPressed, this, &VideoPlayer_ffmpeg::slot_slider_pressed);
+	connect(m_VideoPlayer_ffmpeg_kit->controler->slider, &QSlider::actionTriggered, this, &VideoPlayer_ffmpeg::slot_slider_valuechanged);
 	connect(m_VideoPlayer_ffmpeg_kit->controler->play_or_pause_btn, &QPushButton::clicked, this, &VideoPlayer_ffmpeg::slot_play_or_pause);
+
+	m_VideoPlayer_ffmpeg_kit->controler->slider->installEventFilter(this);
 
 	m_collector = new VideoPlayer_ffmpeg_FrameCollector(this);
 	connect(m_collector, &VideoPlayer_ffmpeg_FrameCollector::collect_one_frame, this, &VideoPlayer_ffmpeg::slot_show_one_frame);
@@ -425,6 +440,37 @@ void VideoPlayer_ffmpeg::keyPressEvent(QKeyEvent* event)
 		event->ignore();
 	}
 }
+bool VideoPlayer_ffmpeg::eventFilter(QObject* watched, QEvent* event)
+{
+	QSlider* slider = m_VideoPlayer_ffmpeg_kit->controler->slider;
+	if (watched != slider)
+		return false;
+
+	if (event->type() != QEvent::MouseButtonPress)
+		return false;
+
+	QMouseEvent* mouse_event = static_cast<QMouseEvent*>(event);
+	if (mouse_event->button() != Qt::LeftButton)
+		return false;
+
+	int duration = slider->maximum() - slider->minimum();
+	int position = slider->minimum() + duration * ((double)mouse_event->x() / slider->width());
+	int now_postion = position != slider->sliderPosition();
+	if (position != now_postion)
+	{
+		slider->setValue(position);
+		if (position < now_postion)
+		{
+			slider->triggerAction(QAbstractSlider::SliderPageStepSub);
+		}
+		else
+		{
+			slider->triggerAction(QAbstractSlider::SliderPageStepAdd);
+		}
+	}
+
+	return QObject::eventFilter(watched, event);
+}
 
 void VideoPlayer_ffmpeg::clear_videodisplayer()
 {
@@ -461,9 +507,21 @@ void VideoPlayer_ffmpeg::slot_play_or_pause()
 	}
 }
 
-void VideoPlayer_ffmpeg::slot_video_leap()
+void VideoPlayer_ffmpeg::slot_slider_pressed()
 {
 	int pos = m_VideoPlayer_ffmpeg_kit->controler->slider->value();
+}	
+void VideoPlayer_ffmpeg::slot_slider_valuechanged(int value)
+{
+	if (value != QAbstractSlider::SliderSingleStepAdd &&
+		value != QAbstractSlider::SliderSingleStepSub &&
+		value != QAbstractSlider::SliderPageStepAdd &&
+		value != QAbstractSlider::SliderPageStepSub)
+	{
+		return;
+	}
+
+	qDebug() << m_VideoPlayer_ffmpeg_kit->controler->slider->value();
 }
 
 void VideoPlayer_ffmpeg::slot_change_playspeed()

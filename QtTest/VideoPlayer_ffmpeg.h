@@ -145,8 +145,8 @@ private:
 	AVCodecContext* m_video_codeccontext;		// 解码器属性
 	AVStream* m_videostream;					// 视频流
 	AVCodec* m_video_codec;						// 视频解码器
-	AVFrame* m_oriframe;						// 用于从视频读取的原始帧结构
-	AVFrame* m_swsframe;						// 用于将 原始帧结构 转换成显示格式的 帧结构
+	AVFrame* m_orifmt_frame;					// 用于从视频读取的原始帧结构
+	AVFrame* m_swsfmt_frame;					// 用于将 原始帧结构 转换成显示格式的 帧结构
 	SwsContext* m_img_convert_ctx;				// 用于转换图像格式的转换器
 	uint8_t* m_frame_buffer;					// 帧缓冲区
 	AVPacket* m_read_packct;					// 用于读取帧的数据包
@@ -157,6 +157,21 @@ private:
 	int m_play_speed;							// 播放速度
 	int m_framenum;								// 总帧数
 	int m_fps;									// 视频帧率
+	/*
+	@brief
+	根据视频帧率 计算出的 理论上每帧单独处理需要的时间
+	@see
+	具体处理过程为
+	ffmpeg解析一帧AVFrqame ->
+	视频格式转换AVFrame -> 
+	数据格式转换cv::Mat -> 
+	缩放cv::Mat -> 
+	数据格式转换QImage -> 
+	发送信号
+	@note
+	用于计算线程中一个循环之后 线程需要休眠的时间长度
+	*/
+	double m_proctime_perframe;
 	int m_video_second;							// 视频秒数
 
 	bool m_is_thred_run;
@@ -241,12 +256,21 @@ protected:
 	void enterEvent(QEvent* event);
 	void leaveEvent(QEvent* event);
 	void keyPressEvent(QKeyEvent* event);
+	bool eventFilter(QObject* watched, QEvent* event);
 
 private:
 	void clear_videodisplayer();
 
 private slots:
+	/*
+	@brief
+	显示一帧
+	*/
 	void slot_show_one_frame(const cv::Mat image);
+	/*
+	@brief
+	进度条 +1s
+	*/
 	void slot_playtime_changed(int sec);
 
 	/*
@@ -256,9 +280,10 @@ private slots:
 	void slot_play_or_pause();
 	/*
 	@brief
-	点击进度条跳转
+	点击进度条滑块
 	*/
-	void slot_video_leap();
+	void slot_slider_pressed();
+	void slot_slider_valuechanged(int value);
 
 	void slot_finish_collect_frame();
 
