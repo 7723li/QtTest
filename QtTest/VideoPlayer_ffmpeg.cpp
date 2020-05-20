@@ -23,7 +23,8 @@ QThread(p)
 	m_process_perframe = 0;
 	m_video_msecond = 0;
 
-	m_is_thred_run = false;
+	m_is_thread_run = false;
+	m_is_thread_pausing = true;
 	m_play_status = play_status::STATIC;
 }
 videoduration_ms VideoPlayer_ffmpeg_FrameCollector::init(const QString& video_path)
@@ -154,7 +155,7 @@ videoduration_ms VideoPlayer_ffmpeg_FrameCollector::init(const QString& video_pa
 	int frame_area = m_video_codeccontext->width * m_video_codeccontext->height;
 
 	// 分配一个数据包 读取一(视频)帧之后 用来存(视频)帧的数据
-	m_read_packct = new AVPacket;
+	m_read_packct = av_packet_alloc();	
 	if (av_new_packet(m_read_packct, frame_area) < 0)
 	{
 		return -1;
@@ -180,18 +181,26 @@ void VideoPlayer_ffmpeg_FrameCollector::play(int begin, int finish)
 void VideoPlayer_ffmpeg_FrameCollector::pause()
 {
 	m_play_status = play_status::STATIC;
+	while (!m_is_thread_pausing);
 }
 void VideoPlayer_ffmpeg_FrameCollector::stop()
 {
-	m_is_thred_run = false;
+	m_is_thread_run = false;
 	this->wait();
 	while (this->isRunning());
 }
 void VideoPlayer_ffmpeg_FrameCollector::leap(int msec)
 {
+	play_status save_status = m_play_status;
+	m_play_status = play_status::STATIC;			// 先暂停线程 避免造成资源冲突
+	while (!m_is_thread_pausing);
+
 	double leap_to_second = (double)msec / (double)1000;
 	double leap_to_timestamp = leap_to_second / m_second_timebase;
 	static int leap_flag = AVSEEK_FLAG_BACKWARD;
+
+	qDebug() << msec;
+	qDebug() << QString::number(leap_to_timestamp, 10, 8);
 
 	int seek_res = av_seek_frame(
 		m_format_context,
@@ -199,62 +208,52 @@ void VideoPlayer_ffmpeg_FrameCollector::leap(int msec)
 		leap_to_timestamp,
 		leap_flag);
 
-	if (0 == read_and_show())
-	{
-		emit playtime_changed(m_read_packct->pts * m_second_timebase * 1000);
-	}
-}
-bool VideoPlayer_ffmpeg_FrameCollector::playing()
-{
-	return (m_play_status == play_status::DYNAMIC);
-}
-bool VideoPlayer_ffmpeg_FrameCollector::pausing()
-{
-	return (m_play_status == play_status::STATIC);
-}
-int VideoPlayer_ffmpeg_FrameCollector::read_and_show()
-{
-	// 读一帧 < 0 就说明读完了
+	if (seek_res < 0)
+		return;
+
 	if (av_read_frame(m_format_context, m_read_packct) < 0)
 	{
-		return -1;
+		return;
 	}
-
-	// 安全判断 确保解码的是视频流
-	if (m_read_packct->stream_index != m_videostream_idx)
-		return -2;
-
-	// 解码一帧
+	while (m_read_packct->stream_index != m_videostream_idx)
+	{
+		if (av_read_frame(m_format_context, m_read_packct) < 0)
+		{
+			return;
+		}
+	}
 	int get_picture = 0;
 	int ret = avcodec_decode_video2(m_video_codeccontext, m_orifmt_frame, &get_picture, m_read_packct);
-	// 如果 解码成功(ret > 0) 并且 该帧为关键帧(get_picture > 0) 才去转码
 	if (ret > 0 && get_picture > 0)
 	{
-		// 转码一帧格式
 		sws_scale(m_img_convert_ctx, m_orifmt_frame->data, m_orifmt_frame->linesize, 0, m_video_codeccontext->height, m_swsfmt_frame->data, m_swsfmt_frame->linesize);
 	}
 
-	// 缩放一帧大小
 	cv::Mat orisize_frame(cv::Size(m_video_codeccontext->width, m_video_codeccontext->height), CV_8UC3, m_frame_buffer);
 	cv::Mat swssize_frame(cv::Size(m_showsize.width(), m_showsize.height()), CV_8UC3);
 	cv::resize(orisize_frame, swssize_frame, cv::Size(swssize_frame.cols, swssize_frame.rows), 0, 0);
 
-	// 显示
 	emit collect_one_frame(swssize_frame);
+	emit playtime_changed(m_read_packct->pts * m_second_timebase * 1000);
 
-	return 0;
+	m_play_status = save_status;
+}
+bool VideoPlayer_ffmpeg_FrameCollector::playing()
+{
+	return (m_play_status == play_status::DYNAMIC && !m_is_thread_pausing);
+}
+bool VideoPlayer_ffmpeg_FrameCollector::pausing()
+{
+	return (m_play_status == play_status::STATIC && m_is_thread_pausing);
 }
 void VideoPlayer_ffmpeg_FrameCollector::relaese()
 {
 	av_free(m_frame_buffer);						// 清空缓冲区
-	av_free(m_orifmt_frame);							// 清空原始帧格式
-	av_free(m_swsfmt_frame);							// 清空转换帧格式
-	av_free_packet(m_read_packct);
+	av_free(m_orifmt_frame);						// 清空原始帧格式
+	av_free(m_swsfmt_frame);						// 清空转换帧格式
+	av_free_packet(m_read_packct);					// 释放读取包
 	avcodec_close(m_video_codeccontext);			// 关闭解码器
 	avformat_close_input(&m_format_context);		// 关闭视频属性
-
-	if (nullptr != m_read_packct)
-		delete m_read_packct;
 
 	m_format_context = nullptr;
 	m_format_context = nullptr;
@@ -273,13 +272,14 @@ void VideoPlayer_ffmpeg_FrameCollector::relaese()
 void VideoPlayer_ffmpeg_FrameCollector::run()
 {
 	int now_second = 0, play_second = 0;
-	m_is_thred_run = true;
+	m_is_thread_run = true;
 	while (true)
 	{
 		clock_t begin = clock();
+		m_is_thread_pausing = true;
 
 		// 退出线程
-		if (!m_is_thred_run)
+		if (!m_is_thread_run)
 		{
 			break;
 		}
@@ -290,10 +290,35 @@ void VideoPlayer_ffmpeg_FrameCollector::run()
 			continue;
 		}
 
-		if (-1 == read_and_show())
+		m_is_thread_pausing = false;
+
+		// 读一帧 < 0 就说明读完了
+		if (av_read_frame(m_format_context, m_read_packct) < 0)
 		{
 			break;
 		}
+
+		// 安全判断 确保解码的是视频流
+		if (m_read_packct->stream_index != m_videostream_idx)
+			continue;
+
+		// 解码一帧
+		int get_picture = 0;
+		int ret = avcodec_decode_video2(m_video_codeccontext, m_orifmt_frame, &get_picture, m_read_packct);
+		// 如果 解码成功(ret > 0) 并且 该帧为关键帧(get_picture > 0) 才去转码
+		if (ret > 0 && get_picture > 0)
+		{
+			// 转码一帧格式
+			sws_scale(m_img_convert_ctx, m_orifmt_frame->data, m_orifmt_frame->linesize, 0, m_video_codeccontext->height, m_swsfmt_frame->data, m_swsfmt_frame->linesize);
+		}
+
+		// 缩放一帧大小
+		cv::Mat orisize_frame(cv::Size(m_video_codeccontext->width, m_video_codeccontext->height), CV_8UC3, m_frame_buffer);
+		cv::Mat swssize_frame(cv::Size(m_showsize.width(), m_showsize.height()), CV_8UC3);
+		cv::resize(orisize_frame, swssize_frame, cv::Size(swssize_frame.cols, swssize_frame.rows), 0, 0);
+
+		// 显示
+		emit collect_one_frame(swssize_frame);
 
 		// 进度条一秒一换 避免频繁切换
 		play_second = m_read_packct->pts * m_second_timebase;
@@ -324,6 +349,8 @@ void VideoPlayer_ffmpeg_FrameCollector::run()
 VideoPlayer_ffmpeg_ControlPanel_kit::VideoPlayer_ffmpeg_ControlPanel_kit(QLabel* p) :
 QWidget(p)
 {
+	this->setStyleSheet("{background-color:white;}");
+
 	slider = new QSlider(this);
 	slider->setTickPosition(QSlider::NoTicks);
 	slider->setOrientation(Qt::Horizontal);
@@ -379,9 +406,7 @@ QWidget(p)
 	this->hide();
 
 	m_VideoPlayer_ffmpeg_kit = new VideoPlayer_ffmpeg_kit(this);
-	connect(m_VideoPlayer_ffmpeg_kit->controler->slider, &QSlider::sliderPressed, this, &VideoPlayer_ffmpeg::slot_slider_pressed);
-	connect(m_VideoPlayer_ffmpeg_kit->controler->slider, &QSlider::sliderReleased, this, &VideoPlayer_ffmpeg::slot_slider_released);
-	connect(m_VideoPlayer_ffmpeg_kit->controler->slider, &QSlider::actionTriggered, this, &VideoPlayer_ffmpeg::slot_slider_triggered);
+	connect(this, &VideoPlayer_ffmpeg::slider_motivated, this, &VideoPlayer_ffmpeg::slot_slider_triggered);
 	connect(m_VideoPlayer_ffmpeg_kit->controler->play_or_pause_btn, &QPushButton::clicked, this, &VideoPlayer_ffmpeg::slot_play_or_pause);
 
 	// lzx 20200520 视频进度条注册事件过滤器 实现随意点击 详见eventFilter注释
@@ -405,6 +430,13 @@ void VideoPlayer_ffmpeg::set_media(const QString & video_path,
 	int begin,
 	int finish)
 {
+	qDebug() << m_VideoPlayer_ffmpeg_kit->controler->slider->singleStep();
+	qDebug() << m_VideoPlayer_ffmpeg_kit->controler->slider->pageStep();
+
+	m_VideoPlayer_ffmpeg_kit->controler->slider->setSingleStep(1);
+	m_VideoPlayer_ffmpeg_kit->controler->slider->setPageStep(1);
+
+
 	// 清空显示区域
 	clear_videodisplayer();
 
@@ -508,28 +540,51 @@ bool VideoPlayer_ffmpeg::eventFilter(QObject* watched, QEvent* event)
 		// 20200520 lzx 在不重载QSlider的情况下 实现播放进度条随处可点的功能
 		QSlider* slider = m_VideoPlayer_ffmpeg_kit->controler->slider;
 
-		if (event->type() != QEvent::MouseButtonPress)
-			return false;
-
-		QMouseEvent* mouse_event = static_cast<QMouseEvent*>(event);
-		if (mouse_event->button() != Qt::LeftButton)
-			return false;
-
-		int duration = slider->maximum() - slider->minimum();
-		int position = slider->minimum() + duration * ((double)mouse_event->x() / slider->width());
-		int now_postion = slider->value();
-		if (position != now_postion)
+		if (event->type() == QEvent::MouseButtonRelease)
 		{
-			slider->setValue(position);
-			if (position < now_postion)
+			QMouseEvent* mouse_event = static_cast<QMouseEvent*>(event);
+			if (mouse_event->button() != Qt::LeftButton)
+				return false;
+
+			int duration = slider->maximum() - slider->minimum();
+			int position = slider->minimum() + duration * ((double)mouse_event->x() / slider->width());
+			int now_postion = slider->value();
+			if (position != now_postion)
 			{
-				slider->triggerAction(QAbstractSlider::SliderPageStepSub);
-			}
-			else
-			{
-				slider->triggerAction(QAbstractSlider::SliderPageStepAdd);
+				slider->setValue(position);
+				if (position < now_postion)
+				{
+					emit slider_motivated(QAbstractSlider::SliderPageStepSub);
+				}
+				else
+				{
+					emit slider_motivated(QAbstractSlider::SliderPageStepAdd);
+				}
 			}
 		}
+		else if (event->type() == QEvent::KeyPress)
+		{
+			const int step = 1;
+			QKeyEvent* key_event = static_cast<QKeyEvent*>(event);
+			if (key_event->key() == Qt::Key_Left)
+			{
+				int now_value = slider->value();
+				if (now_value - step >= slider->minimum())
+				{
+					slider->setValue(now_value - step);
+					emit slider_motivated(QAbstractSlider::SliderSingleStepSub);
+				}
+			}
+			else if (key_event->key() == Qt::Key_Right)
+			{
+				int now_value = slider->value();
+				if (now_value + step <= slider->maximum())
+				{
+					slider->setValue(now_value + step);
+					emit slider_motivated(QAbstractSlider::SliderSingleStepAdd);
+				}
+			}
+		}		
 	}
 
 	return QObject::eventFilter(watched, event);
@@ -574,14 +629,8 @@ void VideoPlayer_ffmpeg::slot_play_or_pause()
 	}
 }
 
-void VideoPlayer_ffmpeg::slot_slider_pressed()
-{
-	m_slider_pressed_value = m_VideoPlayer_ffmpeg_kit->controler->slider->value();
-	//m_collector->pause();
-}	
 void VideoPlayer_ffmpeg::slot_slider_triggered(int action)
 {
-	//m_collector->pause();
 	if (action != QAbstractSlider::SliderSingleStepAdd &&		// 鼠标单击滑块右边
 		action != QAbstractSlider::SliderSingleStepSub &&		// 鼠标单击滑块左边
 		action != QAbstractSlider::SliderPageStepAdd &&			// 键盘右箭头
@@ -592,18 +641,6 @@ void VideoPlayer_ffmpeg::slot_slider_triggered(int action)
 
 	int value = m_VideoPlayer_ffmpeg_kit->controler->slider->value();
 	m_collector->leap(value);
-	//m_collector->play();
-}
-void VideoPlayer_ffmpeg::slot_slider_released()
-{
-	int value = m_VideoPlayer_ffmpeg_kit->controler->slider->value();
-	if (value != m_slider_pressed_value)
-	{
-		m_collector->leap(value);
-	}
-
-	/*if (m_collector->pausing())
-		m_collector->play();*/
 }
 
 void VideoPlayer_ffmpeg::slot_change_playspeed()

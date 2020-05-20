@@ -22,6 +22,7 @@
 #include <QTime>
 #include <QPainter>
 #include <QMetaType>
+#include <QMutex>
 
 #include "PromptBox.h"
 #include "externalFile/opencv/include/opencv2/core/core.hpp"
@@ -134,8 +135,6 @@ protected:
 	virtual void run();
 
 private:
-	int read_and_show();
-
 	/*!
 	@brief
 	释放使用到的视频资源
@@ -194,9 +193,10 @@ private:
 	用于计算线程中一个循环之后 线程需要休眠的时间长度
 	*/
 	double m_process_perframe;
-	videoduration_ms m_video_msecond;				// 视频毫秒数
+	videoduration_ms m_video_msecond;			// 视频毫秒数
 
-	bool m_is_thred_run;						// 线程终结位
+	bool m_is_thread_run;						// 线程开关位
+	bool m_is_thread_pausing;					// 线程暂停判断位
 
 	/*
 	@brief
@@ -221,6 +221,8 @@ private:
 */
 typedef struct VideoPlayer_ffmpeg_ControlPanel_kit : public QWidget
 {
+	Q_OBJECT
+
 public:
 	explicit VideoPlayer_ffmpeg_ControlPanel_kit(QLabel* p);
 	~VideoPlayer_ffmpeg_ControlPanel_kit(){}
@@ -369,9 +371,7 @@ private slots:
 	@brief
 	点击进度条滑块
 	*/
-	void slot_slider_pressed();
 	void slot_slider_triggered(int action);
-	void slot_slider_released();
 
 	void slot_finish_collect_frame();
 
@@ -386,11 +386,12 @@ private slots:
 signals:
 	void play_finish();
 
+	void slider_motivated(int slideraction);
+
 private:	
 	VideoPlayer_ffmpeg_kit* m_VideoPlayer_ffmpeg_kit;
 
 	VideoPlayer_ffmpeg_FrameCollector* m_collector;
-	int m_slider_pressed_value;
 
 	bool m_controller_always_hide;
 };

@@ -1,7 +1,7 @@
 ﻿#include "PageVideoRecord.h"
 
 const QString g_test_picname = "./test.jpg";
-const QString g_test_videoname = "./test.avi";
+const QString g_test_videoname = "./test.mp4";
 
 CameraCapture::CameraCapture(PageVideoRecord* p) : 
 QThread(p), 
