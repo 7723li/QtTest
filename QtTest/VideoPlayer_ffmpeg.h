@@ -38,6 +38,8 @@ extern "C"
 }
 
 typedef struct SwsContext SwsContext;
+// 视频长度(单位:毫秒)
+typedef int64_t videoduration_ms;
 
 /*
 @brief	通用视频、动图播放控件简介
@@ -95,45 +97,64 @@ public:
 	@param[3] playspeed		播放速度 默认为1			int
 	@return 返回值 int
 	<0		初始化失败
-	other	视频总时长(单位:秒)
+	other	视频总时长(单位:毫秒)
 	*/
-	int init(const QString& video_path,
-		QSize show_size,
-		int playspeed = 1);
+	videoduration_ms init(const QString& video_path);
+	void set_showsize(QSize show_size);
+	void set_playspeed(int playspeed);
 
 public slots:
-	void play();
+	/*
+	@brief
+	播放
+	@param[1] begin		开始位置 默认为从头(0)开始		int
+	@param[2] finish	结束位置 默认为到最后为止(-1)		int
+	*/
+	void play(int begin = 0, int finish = -1);
 	void pause();
 	void stop();
-	void leap(int pos);
+	void leap(int msec);
 
-public:
+	/*
+	@brief
+	是否正在播放
+	@note
+	判断条件 : 线程正在运行 并 播放状态为动态
+	*/
 	bool playing();
+	/*
+	@brief
+	是否正在暂停
+	@note
+	判断条件 : 线程正在运行 并 播放状态为静态
+	*/
 	bool pausing();
 
 protected:
 	virtual void run();
 
 private:
+	int read_and_show();
+
 	/*!
 	@brief
 	释放使用到的视频资源
 	*/
-	void free_src();
+	void relaese();
 
 signals:
 	/*
 	@brief
 	采集到一帧的信号
 	@param[1] image 已经转换了格式和大小的图像 可用于显示 QImage
-	@param[2] prog	播放进度(单位:秒)
 	*/
 	void collect_one_frame(const cv::Mat image);
 	/*
 	@brief
-	进度条 +1s 播放时间
+	进度条 +1000ms 播放时间
+	@param[1] msec	播放进度(单位:毫秒)
 	*/
-	void playtime_changed(int sec);
+	void playtime_changed(int msec);
 	/*
 	@brief
 	采集停止的信号 表示视频播放结束
@@ -157,12 +178,13 @@ private:
 	int m_play_speed;							// 播放速度
 	int m_framenum;								// 总帧数
 	int m_fps;									// 视频帧率
+	double m_second_timebase;					// 用于计算(秒)数的时间基
 	/*
 	@brief
-	根据视频帧率 计算出的 理论上每帧单独处理需要的时间
+	根据视频帧率 计算出的 理论上每帧单独处理需要的时间(单位:ms)
 	@see
 	具体处理过程为
-	ffmpeg解析一帧AVFrqame ->
+	ffmpeg解析一帧AVFrame ->
 	视频格式转换AVFrame -> 
 	数据格式转换cv::Mat -> 
 	缩放cv::Mat -> 
@@ -171,15 +193,23 @@ private:
 	@note
 	用于计算线程中一个循环之后 线程需要休眠的时间长度
 	*/
-	double m_proctime_perframe;
-	int m_video_second;							// 视频秒数
+	double m_process_perframe;
+	videoduration_ms m_video_msecond;				// 视频毫秒数
 
-	bool m_is_thred_run;
+	bool m_is_thred_run;						// 线程终结位
 
+	/*
+	@brief
+	播放器播放状态
+	@param[1] STATIC	界面处于静止状态 暂停、未播放都使用这个状态
+	@param[2] DYNAMIC	界面处于动态 播放时使用这个状态
+	*/
 	typedef enum class play_status
 	{
-		PAUSING = 0,
-		PLAYING
+		// @param[1] STATIC	界面处于静止状态 暂停、未播放都使用这个状态
+		STATIC = 0,
+		// @param[2] DYNAMIC	界面处于动态 播放时使用这个状态
+		DYNAMIC = !STATIC
 	}
 	play_status;
 	play_status m_play_status;
@@ -237,8 +267,9 @@ class VideoPlayer_ffmpeg :public QWidget
 public:
 	typedef enum class video_or_gif
 	{
-		VideoStyle = 0,			// 视频样式
-		GifStyle				// 动图样式
+		VideoStyle = 0,				// 视频样式
+		GifStyle_without_slider,	// 无进度条的动图样式
+		GifStyle_with_slider		// 带进度条的动图样式
 	}
 	video_or_gif;
 
@@ -247,15 +278,71 @@ public:
 	~VideoPlayer_ffmpeg();
 
 public slots:
+	/*
+	@brief
+	根据视频路径 设置播放媒介
+	默认为视频显示模式(即带有所有控件 并 播放范围为由头到尾)
+	@param[1] video_path	视频相对路径或绝对路径									QString
+	@param[2] sta			播放器样式 视频 或动图(又分有进度条和没进度条)				video_or_gif
+	@param[3] begin			动图播放专用 视频播放范围开头(单位:毫秒) 默认从头开始 即0		int
+	@param[4] finish		动图播放专用 视频播放范围结尾(单位:毫秒) 默认从头开始 即-1	int
+	*/
 	void set_media(const QString & video_path, 
 		video_or_gif sta = video_or_gif::VideoStyle,
-		int playspeed = 1);
-	//void set_playrange(int begin, int end);
+		int beginms = 0, 
+		int finishms = -1);
+	void set_style(video_or_gif sta = video_or_gif::VideoStyle);
+	/*
+	@brief
+	动图播放专用 设置视频播放范围(单位:毫秒)
+	*/
+	void set_range(int beginms, int endms);
+	/*
+	@brief
+	动图播放专用 设置视频播放开始时间(单位:毫秒)
+	*/
+	void set_begin(int beingms);
+	/*
+	@brief
+	动图播放专用 设置视频播放结束时间(单位:毫秒)
+	*/
+	void set_finish(int finishms);
+	/*
+	@brief
+	设置倍速
+	*/
+	void set_playspeed(int playspeed);
 
 protected:
+	/*
+	@brief
+	进入事件
+	@note
+	显示控制面板
+	*/
 	void enterEvent(QEvent* event);
+	/*
+	@brief
+	退出事件
+	@ntoe
+	隐藏控制面板
+	*/
 	void leaveEvent(QEvent* event);
+	/*
+	@brief
+	键盘事件
+	@note
+	1、ctrl + w 关闭播放器
+	*/
 	void keyPressEvent(QKeyEvent* event);
+	/*
+	@brief
+	事件过滤器
+	@note
+	1、在不重载QSlider的情况下 实现播放进度条随处可点的功能
+	@see
+	使用事件过滤器 需要在构造函数调用son->installEventFilter(par)功能 来注册过滤器
+	*/
 	bool eventFilter(QObject* watched, QEvent* event);
 
 private:
@@ -269,9 +356,9 @@ private slots:
 	void slot_show_one_frame(const cv::Mat image);
 	/*
 	@brief
-	进度条 +1s
+	进度条跳转(单位:ms)
 	*/
-	void slot_playtime_changed(int sec);
+	void slot_playtime_changed(int msec);
 
 	/*
 	@brief
@@ -283,7 +370,8 @@ private slots:
 	点击进度条滑块
 	*/
 	void slot_slider_pressed();
-	void slot_slider_valuechanged(int value);
+	void slot_slider_triggered(int action);
+	void slot_slider_released();
 
 	void slot_finish_collect_frame();
 
@@ -302,6 +390,7 @@ private:
 	VideoPlayer_ffmpeg_kit* m_VideoPlayer_ffmpeg_kit;
 
 	VideoPlayer_ffmpeg_FrameCollector* m_collector;
+	int m_slider_pressed_value;
 
 	bool m_controller_always_hide;
 };
