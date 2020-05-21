@@ -38,9 +38,9 @@ extern "C"
 #include "externalFile/ffmpeg/include/libavutil/pixfmt.h"
 }
 
-typedef struct SwsContext SwsContext;
+using SwsContext = struct SwsContext;
 // 视频长度(单位:毫秒)
-typedef int64_t videoduration_ms;
+using videoduration_ms = int64_t;
 
 /*
 @brief	通用视频、动图播放控件简介
@@ -102,7 +102,54 @@ public:
 	*/
 	videoduration_ms init(const QString& video_path);
 	void set_showsize(QSize show_size);
-	void set_playspeed(int playspeed);
+	/*
+	@brief!
+	播放倍速
+
+	@note
+	增加播放倍速 即意味着增加播放帧率
+	*********************************************************
+	比如
+	60fps的视频2倍速播放 则意味着播放帧率应该提升到120fps
+	60fps的视频0.5倍速播放 则播放帧率应为30fps
+	*********************************************************
+	改变播放帧率
+	最直观的处理方式就是改变计算出的单帧理论处理时间
+	减少或增加线程休眠时间
+	*********************************************************
+
+	@example
+	提升至2倍速		->	单帧理论处理时间减半 / 2
+	降低至0.5倍速	->	单帧理论处理时间加倍 / 0.5
+	*/
+	void set_playspeed(double playspeed);
+	/*
+	@brief
+	设置播放范围
+	*/
+	void set_range(videoduration_ms begin, videoduration_ms end);
+
+	/*
+	@brief!
+	查看是否播放完毕
+	@note
+	判断条件 : 线程没有正在运行 并 播放状态为静态
+	*/
+	bool is_end();
+	/*
+	@brief
+	是否正在播放
+	@note
+	判断条件 : 线程不在暂停状态 并 播放状态为动态
+	*/
+	bool is_playing();
+	/*
+	@brief
+	是否正在暂停
+	@note
+	判断条件 : 线程在暂停状态 并 播放状态为静态
+	*/
+	bool is_pause();
 
 public slots:
 	/*
@@ -114,32 +161,20 @@ public slots:
 	void play(int begin = 0, int finish = -1);
 	void pause();
 	void stop();
+	/*
+	@brief!
+	视频跳转功能
+	@param[1]	视频播放时间(单位:毫秒)
+	*/
 	void leap(int msec);
-
-	/*
-	@brief
-	是否正在播放
-	@note
-	判断条件 : 线程正在运行 并 播放状态为动态
-	*/
-	bool playing();
-	/*
-	@brief
-	是否正在暂停
-	@note
-	判断条件 : 线程正在运行 并 播放状态为静态
-	*/
-	bool pausing();
-
-protected:
-	virtual void run();
-
-private:
 	/*!
 	@brief
 	释放使用到的视频资源
 	*/
 	void relaese();
+
+protected:
+	virtual void run();
 
 signals:
 	/*
@@ -174,13 +209,17 @@ private:
 	QImage::Format m_image_fmt;					// 显示的图像格式RGB24
 	QSize m_showsize;							// 显示窗口大小
 	int m_videostream_idx;						// 视频流位置
-	int m_play_speed;							// 播放速度
 	int m_framenum;								// 总帧数
 	int m_fps;									// 视频帧率
 	double m_second_timebase;					// 用于计算(秒)数的时间基
 	/*
 	@brief
-	根据视频帧率 计算出的 理论上每帧单独处理需要的时间(单位:ms)
+	1倍速情况下
+	根据视频帧率计算出的
+	理论上每帧单独处理需要的时间(单位:ms)
+	@attention
+	只在初始化视频时进行一次计算赋值
+	在运行过程中必须不可改变
 	@see
 	具体处理过程为
 	ffmpeg解析一帧AVFrame ->
@@ -192,11 +231,20 @@ private:
 	@note
 	用于计算线程中一个循环之后 线程需要休眠的时间长度
 	*/
-	double m_process_perframe;
+	double m_process_perframe_1speed;
+	/*
+	@brief!
+	应用于线程中的单帧处理时间
+	运行过程中可改变
+	*/
+	double m_process_perframe;	
 	videoduration_ms m_video_msecond;			// 视频毫秒数
+	videoduration_ms m_video_playbegin;			// 视频播放开始位置
+	videoduration_ms m_video_playend;			// 视频播放结束位置
 
 	bool m_is_thread_run;						// 线程开关位
 	bool m_is_thread_pausing;					// 线程暂停判断位
+	bool m_is_init;
 
 	/*
 	@brief
@@ -228,18 +276,14 @@ public:
 	~VideoPlayer_ffmpeg_ControlPanel_kit(){}
 
 public:
-	QSlider* slider;										// 播放进度条
 	QPushButton* play_or_pause_btn;							// 播放暂停按钮
 	QLabel* video_playtime;									// 视频播放时间
 	QLabel* video_sumtime;									// 视频总时长
-	QComboBox* play_speed_box;								// 倍速选择
+	QComboBox* playspeed_box;								// 倍速选择
 
 	QStackedWidget* func_button_list;						// 功能键列表
 	QPushButton* delete_btn;								// 删除视频
 	QPushButton* shear_btn;									// 剪切视频
-
-	using scrsh_pnt_list = std::map<QGraphicsEllipseItem*, QPoint>;
-	scrsh_pnt_list screenshot_pnt_list;						// 截图点列表
 }
 VideoPlayer_ffmpeg_Controler_kit;
 
@@ -254,6 +298,7 @@ public:
 
 public:
 	QLabel* frame_displayer;								// 帧显示器
+	QSlider* slider;										// 播放进度条
 	VideoPlayer_ffmpeg_ControlPanel_kit* controler;			// 控制面板
 }
 VideoPlayer_ffmpeg_kit;
@@ -261,59 +306,102 @@ VideoPlayer_ffmpeg_kit;
 /*
 @brief
 视频播放器主体 从流数据处理器处获取帧数据并播放
+@note
+默认隐藏
 */
 class VideoPlayer_ffmpeg :public QWidget
 {
 	Q_OBJECT
 
 public:
-	typedef enum class video_or_gif
+	/*
+	@brief
+	显示状态
+	@param[1] VideoStyle				视频样式
+	@param[2] GifStyle_without_slider	无进度条的动图样式
+	@param[3] GifStyle_with_slider		带进度条的动图样式
+	*/
+	enum class video_or_gif
 	{
-		VideoStyle = 0,				// 视频样式
-		GifStyle_without_slider,	// 无进度条的动图样式
-		GifStyle_with_slider		// 带进度条的动图样式
-	}
-	video_or_gif;
+		VideoStyle = 0,
+		GifStyle_without_slider,
+		GifStyle_with_slider,
+	};
+
+	/*
+	@brief
+	媒介设置状态
+	@param[1] Succeed				成功
+	@param[2] NoVideoMessage		没有找到视频信息
+	@param[3] VideoAnalysisFailed	视频解析错误
+	*/
+	enum class set_media_status
+	{
+		Succeed = 0,
+		NoVideoMessage,
+		VideoAnalysisFailed
+	};
 
 public:
 	explicit VideoPlayer_ffmpeg(QWidget* p = nullptr);
-	~VideoPlayer_ffmpeg();
+	~VideoPlayer_ffmpeg(){}
 
 public slots:
 	/*
 	@brief
 	根据视频路径 设置播放媒介
 	默认为视频显示模式(即带有所有控件 并 播放范围为由头到尾)
-	@param[1] video_path	视频相对路径或绝对路径									QString
-	@param[2] sta			播放器样式 视频 或动图(又分有进度条和没进度条)				video_or_gif
-	@param[3] begin			动图播放专用 视频播放范围开头(单位:毫秒) 默认从头开始 即0		int
-	@param[4] finish		动图播放专用 视频播放范围结尾(单位:毫秒) 默认从头开始 即-1	int
+	@param[1] video_path	视频相对路径或绝对路径							QString
+	@param[2] sta			播放器样式 视频 或动图(又分有进度条和没进度条)		video_or_gif
+	@param[3] begin			视频播放范围开头(单位:毫秒) 默认从头开始 即0		int
+	@param[4] finish		视频播放范围结尾(单位:毫秒) 默认从头开始 即-1		int
+	@return!
+	返回值
+	true	设置成功
+	false	设置失败
+	@note!
+	只需要在设置视频路径的时候调用一次 设置路径后避免重复调用
 	*/
-	void set_media(const QString & video_path, 
+	set_media_status set_media(const QString & video_path,
 		video_or_gif sta = video_or_gif::VideoStyle,
-		int beginms = 0, 
-		int finishms = -1);
+		videoduration_ms beginms = 0,
+		videoduration_ms endms = -1);
 	void set_style(video_or_gif sta = video_or_gif::VideoStyle);
 	/*
 	@brief
-	动图播放专用 设置视频播放范围(单位:毫秒)
+	设置视频播放范围(单位:毫秒)
+	@attention
+	播放范围 与 进度条活动范围没有直接关联
 	*/
-	void set_range(int beginms, int endms);
+	void set_playrange(videoduration_ms beginms, videoduration_ms endms);
 	/*
 	@brief
-	动图播放专用 设置视频播放开始时间(单位:毫秒)
+	设置视频播放开始时间(单位:毫秒)
 	*/
-	void set_begin(int beingms);
+	void set_playbegin(videoduration_ms beingms);
 	/*
 	@brief
-	动图播放专用 设置视频播放结束时间(单位:毫秒)
+	设置视频播放结束时间(单位:毫秒)
 	*/
-	void set_finish(int finishms);
+	void set_playend(videoduration_ms finishms);
 	/*
 	@brief
-	设置倍速
+	设置默认播放倍速
+	@attention
+	视频、动图倍速默认都为1倍速
+	预留接口
+	正常情况下不应该被调用 
+	除非之后动图需要倍速播放
+	否则永远不会用到
 	*/
 	void set_playspeed(int playspeed);
+	/*
+	@brief
+	gif播放专用 设置是否重复播放
+	@note
+	调用这个方法后将会马上开始播放视频
+	*/
+	void set_replay(bool replay);
 
 protected:
 	/*
@@ -349,6 +437,7 @@ protected:
 
 private:
 	void clear_videodisplayer();
+	void init_playspeed_box();
 
 private slots:
 	/*
@@ -375,7 +464,7 @@ private slots:
 
 	void slot_finish_collect_frame();
 
-	void slot_change_playspeed();
+	void slot_playspeed_changed(int box_idx);
 
 	void slot_delete_video();
 
@@ -393,5 +482,15 @@ private:
 
 	VideoPlayer_ffmpeg_FrameCollector* m_collector;
 
+	QString m_abs_videopath;
+
+	bool m_video_exist;
 	bool m_controller_always_hide;
+	bool m_replay_after_finish;
+
+	const std::vector<double> m_playspeed_choosen;	// 可选的播放倍速
+	const int m_playspeed_1_index;					// 1倍速的索引位置
+
+	videoduration_ms m_playbeginms;
+	videoduration_ms m_playendms;
 };

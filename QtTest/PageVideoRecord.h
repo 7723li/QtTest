@@ -205,7 +205,20 @@ private slots:
 	void slot_replay_begin(QListWidgetItem* choosen_video);	// 重播录制的视频
 	void slot_replay_finish();								// 重播完毕
 
+	/*
+	@brief
+	相机插入
+	*/
+	void slot_camera_plugin();
+	/*
+	@brief
+	相机拔出
+	*/
+	void slot_camera_plugout();
+
 signals:
+	void PageVideoRecord_recordbegan();						// 录制开始信号 主界面接收
+	void PageVideoRecord_recordfinish();					// 录制结束信号 主界面接收
 	void PageVideoRecord_exit(const QString & examid);		// 退出录制界面时发出的信号 由主界面接收
 
 private:
