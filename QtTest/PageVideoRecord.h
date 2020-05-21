@@ -55,10 +55,9 @@ public:
 	@brief
 	开始获取图像
 	@param[1] c 录制界面当前正在使用的相机 camerabase*
-	@param[2] m 录制界面 ->已经分配好<- 的帧空间 cv::Mat*
-	@param[3] v 录制界面的VideoWriter cv::VideoWriter*
+	@param[2] v 录制界面的VideoWriter cv::VideoWriter*
 	*/
-	bool begin_capture(camerabase* c, cv::Mat* m_pMat, cv::VideoWriter* v, QMutex* mt);
+	bool begin_capture(camerabase* c, cv::VideoWriter* v);
 	/*
 	@brief
 	停止获取图像
@@ -108,9 +107,7 @@ private:
 	bool m_need_record;
 
 	camerabase* m_camerabase;
-	cv::Mat* m_pMat;
 	cv::VideoWriter* m_writer;
-	QMutex* m_mutex;
 };
 
 /*
@@ -241,10 +238,8 @@ private:
 	bool m_is_show_framerate;								// 是否在帧显示器上显示fps
 	double m_framerate;										// 当前相机的fps
 
-	cv::Mat m_mat;											// Mat -> QImage -> QPixmap -> QLabel
 	cv::VideoWriter m_VideoWriter;							// 将Mat写入到视频
 	CameraCapture* m_video_capture;							// 捕捉影像的子线程
-	QMutex m_mutex;											// 子线程负责写 主线程负责读 尽量避免冲突
 
 	camerabase* m_camerabase;								// 相机封装 通用相机接口
 	AVTCamera* m_avt_camera;								// AVT相机
