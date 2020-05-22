@@ -328,10 +328,10 @@ int AVTCamera::openCamera()
 	return OpenStatus::OpenSuccess;
 }
 
-bool AVTCamera::get_one_frame(cv::Mat & frame)
+uchar* AVTCamera::get_one_frame()
 {
 	if (m_framedata_queue.empty())
-		return false;
+		return nullptr;
 
 	m_mutex.lock();
 	uchar* data = m_framedata_queue.front();
@@ -339,15 +339,9 @@ bool AVTCamera::get_one_frame(cv::Mat & frame)
 	m_mutex.unlock();
 
 	if (nullptr == data)
-		return false;
+		return nullptr;
 
-	if (frame.cols != m_frame_width || frame.rows != m_frame_height)
-	{
-		frame = cv::Mat(cv::Size(m_frame_width, m_frame_height), CV_8UC1, data);
-	}
-	memcpy(frame.data, data, m_frame_area);
-
-	return true;
+	return data;
 }
 
 int AVTCamera::closeCamera()
@@ -362,29 +356,22 @@ int AVTCamera::closeCamera()
 	FeaturePtr command_feature;
 	if (VmbErrorSuccess == m_using_camera->GetFeatureByName("AcquisitionStop", command_feature))	// 停止采集
 	{
-		if (VmbErrorSuccess != command_feature->RunCommand())
-		{
-			return camerabase::OpenFailed;
-		}
+		command_feature->RunCommand();
 	}
 
-	if (VmbErrorSuccess != m_using_camera->EndCapture() ||			// 停止捕捉影像
-		VmbErrorSuccess != m_using_camera->FlushQueue() ||			// 清空缓冲区
-		VmbErrorSuccess != m_using_camera->RevokeAllFrames() ||
-		VmbErrorSuccess != m_using_camera->Close()					// 关闭摄像头
-		)
-	{
-		return camerabase::OpenFailed;
-	}
+	m_using_camera->EndCapture();						// 停止捕捉影像
+	m_using_camera->FlushQueue();						// 清空缓冲区
+	m_using_camera->RevokeAllFrames();
+	m_using_camera->Close();							// 关闭摄像头
 
 	for (FramePtr& buffer : m_AVT_framebuffer)
 	{
-		buffer->UnregisterObserver();								// 注销观察者
-		SP_RESET(buffer);											// 减少智能指针技术引用技术 析构
+		buffer->UnregisterObserver();					// 注销观察者
+		SP_RESET(buffer);								// 减少智能指针技术引用技术 析构
 	}
 	m_AVT_framebuffer.clear();
 
-	if (!m_framedata_queue.empty())									// 清除数据队列
+	if (!m_framedata_queue.empty())						// 清除数据队列
 	{
 		std::queue<uchar*> to_clear_cache;
 		m_framedata_queue.swap(to_clear_cache);

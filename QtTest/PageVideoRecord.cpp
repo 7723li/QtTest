@@ -64,19 +64,25 @@ void CameraCapture::run()
 			break;
 		}
 
-		g_mutex.lock();
-		bool is_get_frame_success = m_camerabase->get_one_frame(g_read_mat);
-		g_mutex.unlock();
+		uchar* new_frame_data = m_camerabase->get_one_frame();
 
-		if (is_get_frame_success)
+		if (nullptr != new_frame_data)
 		{
+			g_mutex.lock();
+			g_read_mat = cv::Mat(g_read_mat.rows, g_read_mat.cols, g_read_mat.type(), new_frame_data);
+			g_mutex.unlock();
 			if (m_need_record)
 			{
+				g_mutex.lock();
 				m_writer->write(g_read_mat);
+				g_mutex.unlock();
 			}
 			else
 			{
-				m_writer->release();
+				if (m_writer->isOpened())
+				{
+					m_writer->release();
+				}
 			}
 		}
 		else
@@ -178,12 +184,14 @@ PageVideoRecord::PageVideoRecord(QWidget* parent) :
 
 	m_avt_camera = new AVTCamera;
 	m_camerabase = m_avt_camera;	// 默认使用AVT摄像头
-	connect(m_camerabase, &camerabase::camera_plugin, this, &PageVideoRecord::slot_camera_plugin);
-	connect(m_camerabase, &camerabase::camera_plugout, this, &PageVideoRecord::slot_camera_plugout);
 }
 
 void PageVideoRecord::enter_PageVideoRecord(const QString & examid)
 {
+	// 避免离开录制界面之后依然可以操作摄像头
+	connect(m_camerabase, &camerabase::camera_plugin, this, &PageVideoRecord::slot_camera_plugin);
+	connect(m_camerabase, &camerabase::camera_plugout, this, &PageVideoRecord::slot_camera_plugout);
+
 	m_examid = examid;
 	m_video_path = g_test_videoname;
 	m_video_thumb_path = g_test_picname;
@@ -197,19 +205,15 @@ void PageVideoRecord::enter_PageVideoRecord(const QString & examid)
 	show_camera_openstatus(sta);				// 提示相机打开状态
 	if (sta == camerabase::OpenSuccess)			// 打开成功
 	{
-		int w = 0, h = 0;
-		m_camerabase->get_frame_wh(w, h);
-		g_show_mat = cv::Mat::zeros(w, h, CV_8UC1);	// 初始化Mat 分配帧空间大小
-		g_read_mat = cv::Mat::zeros(w, h, CV_8UC1);
-
+		alloc_frame_stroage();					// 分配读写帧内存空间
 		begin_collect_fps();					// 开始收集fps
-		begin_show_frame();						// 开启转换线程 开始显示图像
 		begin_capture();						// 开启捕捉线程 开始捕捉图像
+		begin_show_frame();						// 开启转换线程 开始显示图像
 	}
 	else										// 摄像头打开异常
 	{
-		stop_capture();							// 关闭捕捉线程 取消捕捉
 		stop_show_frame();						// 关闭图像转换线程 取消显示
+		stop_capture();							// 关闭捕捉线程 取消捕捉
 		sta = m_camerabase->closeCamera();		// 关闭摄像头
 		show_camera_closestatus(sta);			// 提示关闭状态
 		stop_collect_fps();						// 停止采集fps
@@ -228,14 +232,16 @@ void PageVideoRecord::exit_PageVideoRecord()
 		return;
 	}
 
+	// 避免离开录制界面之后依然可以操作摄像头
+	disconnect(m_camerabase, &camerabase::camera_plugin, this, &PageVideoRecord::slot_camera_plugin);
+	disconnect(m_camerabase, &camerabase::camera_plugout, this, &PageVideoRecord::slot_camera_plugout);
+
 	stop_collect_fps();							// 停止采集fps
 	stop_show_frame();							// 关闭图像转换线程 取消显示
 	stop_capture();								// 关闭捕捉线程 取消捕捉
 	m_camerabase->closeCamera();				// 关闭摄像头
 	clear_all_vidthumb();						// 清理缩略图
-
-	g_read_mat.release();
-	g_show_mat.release();						// 释放帧数据
+	free_frame_storage();
 
 	emit PageVideoRecord_exit(m_examid);		// 发射一个本页面关闭的信号
 }
@@ -269,6 +275,19 @@ void PageVideoRecord::clear_videodisplay()
 	}
 	image.fill(Qt::black);
 	m_PageVideoRecord_kit->frame_displayer->setPixmap(QPixmap::fromImage(image));
+}
+
+void PageVideoRecord::alloc_frame_stroage()
+{
+	int w = 0, h = 0;
+	m_camerabase->get_frame_wh(w, h);
+	g_show_mat = cv::Mat::zeros(h, w, CV_8UC1);	// 初始化Mat 分配帧空间大小
+	g_read_mat = cv::Mat::zeros(h, w, CV_8UC1);
+}
+void PageVideoRecord::free_frame_storage()
+{
+	g_read_mat.release();
+	g_show_mat.release();						// 释放帧数据
 }
 
 void PageVideoRecord::load_old_vidthumb()
@@ -391,16 +410,15 @@ void PageVideoRecord::stop_show_frame()
 void PageVideoRecord::slot_show_one_frame()
 {
 	g_mutex.lock();
-	g_show_mat = g_read_mat.clone();
+	g_read_mat.copyTo(g_show_mat);
 	g_mutex.unlock();
 
 	QSize show_size = m_PageVideoRecord_kit->frame_displayer->size();
-	cv::Mat scale_frame(show_size.width(), show_size.height(), g_show_mat.type());
-	cv::resize(g_show_mat, scale_frame, cv::Size(show_size.width(), show_size.height()));
 
-	QImage _image = QImage(scale_frame.data, scale_frame.cols, scale_frame.rows, QImage::Format_Grayscale8);
-
+	QImage& _image = QImage(g_show_mat.data, g_show_mat.cols, g_show_mat.rows, QImage::Format_Grayscale8);
 	QPixmap& _pixmap = QPixmap::fromImage(_image);
+	_pixmap = _pixmap.scaled(show_size);
+
 	if (m_is_show_framerate)
 	{
 		QPainter painter(&_pixmap);
@@ -533,18 +551,14 @@ void PageVideoRecord::slot_replay_finish()
 
 void PageVideoRecord::slot_camera_plugin()
 {
- 	if (m_camerabase->is_camera_connected())
+ 	if (m_camerabase->is_camera_connected())	// 如果当前相机是正在连接状态 那么不处理新相机插入事件
  		return;
  
 	int sta = -1;
 	sta = m_camerabase->openCamera();			// 打开相机
 	if (sta == camerabase::OpenSuccess)			// 打开成功
 	{
-		int w = 0, h = 0;
-		m_camerabase->get_frame_wh(w, h);
-		g_show_mat = cv::Mat::zeros(w, h, CV_8UC1);	// 初始化Mat 分配帧空间大小
-		g_read_mat = cv::Mat::zeros(w, h, CV_8UC1);
-
+		alloc_frame_stroage();					// 分配读写帧内存空间
 		PromptBoxInst(m_PageVideoRecord_kit->frame_displayer)->msgbox_go(
 			PromptBox_msgtype::Information,
 			PromptBox_btntype::None,
@@ -560,20 +574,21 @@ void PageVideoRecord::slot_camera_plugin()
 	{
 		stop_capture();							// 关闭捕捉线程 取消捕捉
 		stop_show_frame();						// 关闭图像转换线程 取消显示
-		sta = m_camerabase->closeCamera();		// 关闭摄像头
-		show_camera_closestatus(sta);			// 提示关闭状态
+		m_camerabase->closeCamera();			// 关闭摄像头
 		stop_collect_fps();						// 停止采集fps
 	}
 }
 void PageVideoRecord::slot_camera_plugout()
 {
- 	if (!m_camerabase->is_camera_connected())
+ 	if (!m_camerabase->is_camera_connected())	// 如果当前没有相机在连接状态 那么不处理拔出事件
  		return;
  
  	stop_collect_fps();							// 停止采集fps
  	stop_capture();								// 关闭捕捉线程 取消捕捉
  	stop_show_frame();							// 关闭图像转换线程 取消显示
  	m_camerabase->closeCamera();				// 关闭摄像头
+	free_frame_storage();
+	clear_videodisplay();
  
  	PromptBoxInst(m_PageVideoRecord_kit->frame_displayer)->msgbox_go(
  		PromptBox_msgtype::Information, 

@@ -78,7 +78,7 @@ public:
 	virtual ~AVTCamera();
 
 	virtual int openCamera();
-	virtual bool get_one_frame(cv::Mat & frame);
+	virtual uchar* get_one_frame();
 	virtual int closeCamera();
 
 	virtual double get_framerate() override;

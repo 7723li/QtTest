@@ -28,6 +28,9 @@
 #include "externalFile/opencv/include/opencv2/core/core.hpp"
 #include "externalFile/opencv/include/opencv2/core/mat.hpp"
 #include "externalFile/opencv/include/opencv2/imgproc/imgproc.hpp"
+#include "externalFile/opencv/include/opencv2/opencv.hpp"
+
+#include "VidSlider.h"
 
 extern "C"
 {
@@ -89,6 +92,18 @@ public:
 	explicit VideoPlayer_ffmpeg_FrameCollector(VideoPlayer_ffmpeg* p = nullptr);
 	~VideoPlayer_ffmpeg_FrameCollector(){}
 
+	/*!
+	线程采集模式
+	@param[1]	ShowVideoMode		普通模式 采集一帧后进行显示
+	@param[1]	ShearVideoMode		剪切模式 采集一帧后进行保存
+	*/
+	typedef enum class RunMode
+	{
+		ShowVideoMode = 0,
+		ShearVideoMode,
+	}
+	RunMode;
+
 public:
 	/*
 	@brief
@@ -101,7 +116,9 @@ public:
 	other	视频总时长(单位:毫秒)
 	*/
 	videoduration_ms init(const QString& video_path);
-	void set_showsize(QSize show_size);
+
+	void set_showsize(QSize show_size){ m_showsize = show_size; }
+
 	/*
 	@brief!
 	播放倍速
@@ -122,12 +139,22 @@ public:
 	提升至2倍速		->	单帧理论处理时间减半 / 2
 	降低至0.5倍速	->	单帧理论处理时间加倍 / 0.5
 	*/
-	void set_playspeed(double playspeed);
-	/*
+	void set_playspeed(double playspeed){ m_process_perframe = m_process_perframe_1speed / playspeed; }
+
+	/*!
 	@brief
 	设置播放范围
+	@param
+	[1] beginms	
 	*/
-	void set_range(videoduration_ms begin, videoduration_ms end);
+	void set_playrange(videoduration_ms beginms, videoduration_ms endms)
+	{
+		m_video_playbegin = beginms;
+		m_video_playend = endms;
+		leap(m_video_playbegin);
+	}
+
+	void set_runmode(RunMode mode){ m_runmode = mode; }
 
 	/*
 	@brief!
@@ -135,21 +162,27 @@ public:
 	@note
 	判断条件 : 线程没有正在运行 并 播放状态为静态
 	*/
-	bool is_end();
+	bool is_end(){ return (m_play_status == play_status::STATIC && !m_is_thread_run); }
+
 	/*
 	@brief
 	是否正在播放
 	@note
 	判断条件 : 线程不在暂停状态 并 播放状态为动态
 	*/
-	bool is_playing();
+	bool is_playing(){ return (m_play_status == play_status::DYNAMIC && !m_is_thread_pausing); }
+
 	/*
 	@brief
 	是否正在暂停
 	@note
 	判断条件 : 线程在暂停状态 并 播放状态为静态
 	*/
-	bool is_pause();
+	bool is_pause(){ return (m_play_status == play_status::STATIC && m_is_thread_pausing); }
+
+	int get_fps(){ return m_fps; }
+	int get_width(){ return m_video_codeccontext->width; }
+	int get_height(){ return m_video_codeccontext->height; };
 
 public slots:
 	/*
@@ -159,14 +192,18 @@ public slots:
 	@param[2] finish	结束位置 默认为到最后为止(-1)		int
 	*/
 	void play(int begin = 0, int finish = -1);
-	void pause();
-	void stop();
+
+	void pause(){ m_play_status = play_status::STATIC; while (!m_is_thread_pausing); }
+
+	void stop(){ m_is_thread_run = false; this->wait(); while (this->isRunning()); }
+
 	/*
 	@brief!
 	视频跳转功能
 	@param[1]	视频播放时间(单位:毫秒)
 	*/
 	void leap(int msec);
+
 	/*!
 	@brief
 	释放使用到的视频资源
@@ -182,18 +219,22 @@ signals:
 	采集到一帧的信号
 	@param[1] image 已经转换了格式和大小的图像 可用于显示 QImage
 	*/
-	void collect_one_frame(const cv::Mat image);
+	void show_one_frame(const cv::Mat image);
+	/*
+	@brief
+	采集停止的信号 表示视频播放结束
+	*/
+	void finish_collect_frame();
+
+	void shear_one_frame(const cv::Mat image);
+	void finish_shear();
+
 	/*
 	@brief
 	进度条 +1000ms 播放时间
 	@param[1] msec	播放进度(单位:毫秒)
 	*/
 	void playtime_changed(int msec);
-	/*
-	@brief
-	采集停止的信号 表示视频播放结束
-	*/
-	void finish_collect_frame();
 
 private:
 	AVFormatContext* m_format_context;			// 视频属性
@@ -261,6 +302,8 @@ private:
 	}
 	play_status;
 	play_status m_play_status;
+
+	RunMode m_runmode;
 };
 
 /*
@@ -284,6 +327,9 @@ public:
 	QStackedWidget* func_button_list;						// 功能键列表
 	QPushButton* delete_btn;								// 删除视频
 	QPushButton* shear_btn;									// 剪切视频
+
+	QPushButton* comfirm_shear_btn;							// 确认剪切视频
+	QPushButton* cancle_shear_btn;							// 取消剪切视频
 }
 VideoPlayer_ffmpeg_Controler_kit;
 
@@ -298,7 +344,8 @@ public:
 
 public:
 	QLabel* frame_displayer;								// 帧显示器
-	QSlider* slider;										// 播放进度条
+	QWidget* slider_background;								// 播放进度条背景
+	VidSlider* slider;										// 播放进度条
 	VideoPlayer_ffmpeg_ControlPanel_kit* controler;			// 控制面板
 }
 VideoPlayer_ffmpeg_kit;
@@ -444,7 +491,9 @@ private slots:
 	@brief
 	显示一帧
 	*/
-	void slot_show_one_frame(const cv::Mat image);
+	void slot_show_collect_one_frame(const cv::Mat image);
+	void slot_finish_show_frame();
+
 	/*
 	@brief
 	进度条跳转(单位:ms)
@@ -458,24 +507,35 @@ private slots:
 	void slot_play_or_pause();
 	/*
 	@brief
-	点击进度条滑块
+	响应进度条事件过滤器
 	*/
-	void slot_slider_triggered(int action);
-
-	void slot_finish_collect_frame();
+	void slot_slider_triggered();
 
 	void slot_playspeed_changed(int box_idx);
 
 	void slot_delete_video();
-
-	void slot_shear_video();
+	/*!
+	@brief
+	剪切视频准备状态
+	*/
+	void slot_ready_shear_video();
+	/*!
+	@brief
+	取消剪切视频
+	*/
+	void slot_cancle_shear_video();
+	/*!
+	@brief
+	确认剪切视频
+	*/
+	void slot_confirm_shear_video();
+	void slot_shear_collect_one_frame(cv::Mat image);
+	void slot_shear_finish();
 
 	void slot_exit();
 
 signals:
 	void play_finish();
-
-	void slider_motivated(int slideraction);
 
 private:	
 	VideoPlayer_ffmpeg_kit* m_VideoPlayer_ffmpeg_kit;
@@ -493,4 +553,6 @@ private:
 
 	videoduration_ms m_playbeginms;
 	videoduration_ms m_playendms;
+
+	cv::VideoWriter m_writer;
 };

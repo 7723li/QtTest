@@ -64,7 +64,7 @@ public:
 	V100Pro默认使用opencv cpp风格的帧格式Mat作为默认的帧格式
 	纯虚函数 必须手动复写
 	*/
-	virtual bool get_one_frame(cv::Mat & frame) = 0;
+	virtual uchar* get_one_frame() = 0;
 	/*
 	@brief
 	相机关闭通用接口

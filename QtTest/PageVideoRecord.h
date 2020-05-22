@@ -165,6 +165,9 @@ protected:
 
 private:
 	void clear_videodisplay();								// 清理图像显示区域
+
+	void alloc_frame_stroage();								// 分配帧内存空间
+	void free_frame_storage();								// 释放帧内存空间
 	
 	void load_old_vidthumb();								// 加载之前的录像缩略图 父视频
 	void put_video_vidthumb(const QString & video_path, const QString & icon_path);	// 放置一个视频缩略图
@@ -202,14 +205,20 @@ private slots:
 	void slot_replay_begin(QListWidgetItem* choosen_video);	// 重播录制的视频
 	void slot_replay_finish();								// 重播完毕
 
-	/*
+	/*!
 	@brief
 	相机插入
+	@note
+	新相机插入事件
+	处理前提是当前没有相机正在连接状态 !camerabase::is_camera_connected
 	*/
 	void slot_camera_plugin();
-	/*
+	/*!
 	@brief
 	相机拔出
+	@note
+	相机拔出事件
+	处理前提是当前被拔出相机正在连接状态 camerabase::is_camera_connected
 	*/
 	void slot_camera_plugout();
 
