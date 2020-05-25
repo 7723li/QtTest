@@ -25,6 +25,7 @@
 #include <QMutex>
 #include <QAbstractItemView>
 #include <QListWidget>
+#include <QMouseEvent>
 
 #include "PromptBox.h"
 #include "externalFile/opencv/include/opencv2/core/core.hpp"
@@ -186,7 +187,7 @@ public:
 	*/
 	bool is_pause(){ return (m_play_status == play_status::STATIC && m_is_thread_pausing); }
 
-	int get_fps(){ return m_fps; }
+	double get_fps(){ return m_fps; }
 	int get_width(){ return m_video_codeccontext->width; }
 	int get_height(){ return m_video_codeccontext->height; };
 
@@ -257,7 +258,7 @@ private:
 	QSize m_showsize;							// 显示窗口大小
 	int m_videostream_idx;						// 视频流位置
 	int m_framenum;								// 总帧数
-	int m_fps;									// 视频帧率
+	double m_fps;								// 视频帧率
 	double m_second_timebase;					// 用于计算(秒)数的时间基
 	/*
 	@brief
@@ -360,7 +361,6 @@ public:
 
 public:
 	QLabel* frame_displayer;								// 帧显示器
-	QWidget* slider_background;								// 播放进度条背景
 	VidSlider* slider;										// 播放进度条
 	VideoPlayer_ffmpeg_ControlPanel_kit* controler;			// 控制面板
 }
@@ -481,6 +481,7 @@ protected:
 	隐藏控制面板
 	*/
 	void leaveEvent(QEvent* event);
+#ifdef _DEBUG
 	/*
 	@brief
 	键盘事件
@@ -488,6 +489,8 @@ protected:
 	1、ctrl + w 关闭播放器
 	*/
 	void keyPressEvent(QKeyEvent* event);
+#endif
+	void mousePressEvent(QMouseEvent* event);
 
 private:
 	void clear_videodisplayer();

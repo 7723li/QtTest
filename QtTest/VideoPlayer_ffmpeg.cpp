@@ -388,25 +388,26 @@ QWidget(p)
 	video_playtime->setText("00:00:00");
 
 	playspeed_choose_btn = new QPushButton(this);
-	playspeed_choose_btn->setGeometry(400, 60, 60, 40);
+	playspeed_choose_btn->setGeometry(400, 60, 80, 40);
 
 	playspeed_list = new QListWidget(p);
-	playspeed_list->setGeometry(400, 0, 60, 100);
+	playspeed_list->setGeometry(400, 571, 80, 120);
 	playspeed_list->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	playspeed_list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	playspeed_list->raise();
 	playspeed_list->hide();
 
 	func_button_list = new QStackedWidget(this);
+	func_button_list->setGeometry(490, 60, 40, 40);
 
 	delete_btn = new QPushButton(func_button_list);
 	delete_btn->setIcon(QIcon(".\\Resources\\icon\\delete.png")); 
-	delete_btn->setGeometry(450, 60, 40, 40);
+	delete_btn->setGeometry(func_button_list->geometry());
 
 	shear_btn = new QPushButton(func_button_list);
 	shear_btn->setIcon(QIcon(".\\Resources\\icon\\cut.png"));
-	shear_btn->setGeometry(450, 60, 40, 40);
+	shear_btn->setGeometry(func_button_list->geometry());
 
-	func_button_list->setGeometry(450, 60, 40, 40);
 	func_button_list->addWidget(delete_btn);
 	func_button_list->addWidget(shear_btn);
 	func_button_list->setCurrentWidget(shear_btn);
@@ -430,18 +431,14 @@ VideoPlayer_ffmpeg_kit::VideoPlayer_ffmpeg_kit(VideoPlayer_ffmpeg* p)
 {
 	frame_displayer = new QLabel(p);
 	frame_displayer->setGeometry(0, 0, 1032, 771);
+	frame_displayer->raise();
 	frame_displayer->show();
 
-	slider_background = new QWidget(p);
-	slider_background->setObjectName("slider_background ");
-	slider_background->setStyleSheet("QWidget#slider_background {background-color: rgb(0, 0, 0);}");
-	slider_background->setGeometry(0, 611, 1032, 14);
-	slider_background->show();
-
-	slider = new VidSlider(slider_background);
+	slider = new VidSlider(frame_displayer);
 	slider->setTickPosition(QSlider::NoTicks);
 	slider->setOrientation(Qt::Horizontal);
-	slider->setGeometry(0, 0, slider_background->width(), slider_background->height());
+	slider->setGeometry(0, 611, 1032, 14);
+	slider->raise();
 	slider->show();
 
 	controler = new VideoPlayer_ffmpeg_ControlPanel_kit(frame_displayer);
@@ -511,6 +508,7 @@ void VideoPlayer_ffmpeg::init_playspeed_box()
 
 		QListWidgetItem* new_item = m_VideoPlayer_ffmpeg_kit->controler->playspeed_list->item(i);
 		new_item->setToolTip(choosen);
+		new_item->setTextAlignment(Qt::AlignCenter);
 
 		if (m_playspeed_choosen[i] == 1)
 		{
@@ -630,7 +628,6 @@ void VideoPlayer_ffmpeg::enterEvent(QEvent* event)
 	if (m_controller_always_hide)
 		return;
 
-	m_VideoPlayer_ffmpeg_kit->slider_background->show();
 	m_VideoPlayer_ffmpeg_kit->slider->show();
 	m_VideoPlayer_ffmpeg_kit->controler->show();
 }
@@ -642,14 +639,14 @@ void VideoPlayer_ffmpeg::leaveEvent(QEvent* event)
 	if (m_VideoPlayer_ffmpeg_kit->controler->playspeed_list->isVisible())
 		return;
 
-	m_VideoPlayer_ffmpeg_kit->slider_background->hide();
 	m_VideoPlayer_ffmpeg_kit->slider->hide();
 	m_VideoPlayer_ffmpeg_kit->controler->hide();
 }
+
+/* lzx 20200525 播放器的键盘(关闭播放器)事件仅限调试时使用 */
+#ifdef _DEBUG
 void VideoPlayer_ffmpeg::keyPressEvent(QKeyEvent* event)
 {
-	/* lzx 20200525 播放器的键盘(关闭播放器)事件仅限调试时使用 */
-#ifdef _DEBUG
 	if (event->modifiers() == Qt::ControlModifier && event->key() == Qt::Key_W)
 	{
 		event->accept();
@@ -660,8 +657,22 @@ void VideoPlayer_ffmpeg::keyPressEvent(QKeyEvent* event)
 	{
 		event->ignore();
 	}
-#endif
 }
+
+void VideoPlayer_ffmpeg::mousePressEvent(QMouseEvent* event)
+{
+	QObject* clicked_widget = this->childAt(event->pos());
+	if (nullptr == clicked_widget ||
+		m_VideoPlayer_ffmpeg_kit->controler->playspeed_list == clicked_widget)
+	{
+		return;
+	}
+
+	if (m_VideoPlayer_ffmpeg_kit->controler->playspeed_list->isVisible())
+		m_VideoPlayer_ffmpeg_kit->controler->playspeed_list->hide();
+}
+
+#endif
 
 void VideoPlayer_ffmpeg::clear_videodisplayer()
 {
@@ -827,11 +838,15 @@ void VideoPlayer_ffmpeg::slot_confirm_shear_video()
 
 	int w = m_collector->get_width();
 	int h = m_collector->get_height();
-	m_writer.open(g_shear_videopath.toStdString().c_str(),
+	double video_fps = m_collector->get_fps();
+	bool open_succ = m_writer.open(QFileInfo(g_shear_videopath).absoluteFilePath().toStdString().c_str(),
 		CV_FOURCC('M', 'J', 'P', 'G'),
-		m_collector->get_fps(),
+		video_fps,
 		cv::Size(w, h), false
 		);
+
+	qDebug() << QFileInfo(g_shear_videopath).absoluteFilePath().toStdString().c_str();
+	qDebug() << open_succ;
 
 	m_shear_schedule = 0;
 	int framenums = m_collector->get_playrange_framenums();
