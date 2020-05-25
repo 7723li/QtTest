@@ -14,16 +14,16 @@ VidSlider::VidSlider(QWidget *parent)
 		"QSlider::sub-page:horizontal{background-color:rgb(255,173,104);}"
 		"QSlider::handle:horizontal{width:12px;background-color:rgb(255,154,60);margin:-2px 0px -2px 0px;border-radius:6px;}");
 	
-	m_LeftLabel = new QLabel(this);
-	m_LeftLabel->hide();
-	m_LeftLabel->setGeometry(0, 0, 8, 14);
-	m_LeftLabel->installEventFilter(this);
+	m_LeftBlade = new QLabel(this);
+	m_LeftBlade->hide();
+	m_LeftBlade->setGeometry(0, 0, 8, 14);
+	m_LeftBlade->installEventFilter(this);
 
 
-	m_RightLabel = new QLabel(this);
-	m_RightLabel->hide();
-	m_RightLabel->setGeometry(this->width(), 0, 8, 14);
-	m_RightLabel->installEventFilter(this);
+	m_RightBlade = new QLabel(this);
+	m_RightBlade->hide();
+	m_RightBlade->setGeometry(this->width(), 0, 8, 14);
+	m_RightBlade->installEventFilter(this);
 
 
 
@@ -87,12 +87,12 @@ QString VidSlider::GetColorFromFrameRangeQua(VesselQuality  qua)
 void VidSlider::GetCutFrameRange(int &begin_frame, int &end_frame)
 {
 	//开始帧
-	int leftpos = m_LeftLabel->pos().x() + m_LeftLabel->width();
+	int leftpos = m_LeftBlade->pos().x() + m_LeftBlade->width();
 	double per = (double)leftpos / this->width();
 	begin_frame = per*m_allFrameCount;
 
 	//结束帧
-	per = (double)m_RightLabel->pos().x() / this->width();
+	per = (double)m_RightBlade->pos().x() / this->width();
 	end_frame = per*m_allFrameCount;
 }
 
@@ -100,12 +100,12 @@ void VidSlider::GetCutFrameRange(int &begin_frame, int &end_frame)
 void VidSlider::GetCutTimeRange(int &begin_timer, int &end_timer)
 {
 	//开始时间
-	int leftpos = m_LeftLabel->pos().x() + m_LeftLabel->width();
+	int leftpos = m_LeftBlade->pos().x() + m_LeftBlade->width();
 	double per = (double)leftpos / this->width();
 	begin_timer = per*m_videoTime;
 
 	//结束时间
-	per = (double)m_RightLabel->pos().x() / this->width();
+	per = (double)m_RightBlade->pos().x() / this->width();
 	end_timer = per*m_videoTime;
 }
 
@@ -230,7 +230,7 @@ void VidSlider::paintEvent(QPaintEvent *event)
 
 	if (m_is_ready_to_cut)
 	{	//绘画左侧刀片
-		QImage Leftp(m_LeftLabel->size(),QImage::Format_ARGB32);
+		QImage Leftp(m_LeftBlade->size(),QImage::Format_ARGB32);
 		//m_LeftLabel->setStyleSheet("background:color rbg(255,255,255);");
 		Leftp.fill(QColor(255, 255, 255, 20));
 		QPainter Leftpainter(&Leftp);
@@ -247,12 +247,12 @@ void VidSlider::paintEvent(QPaintEvent *event)
 
 
 		Leftpainter.drawPolygon(leftPointVec);
-		m_LeftLabel->setPixmap(QPixmap::fromImage(Leftp));
-		m_LeftLabel->show();
+		m_LeftBlade->setPixmap(QPixmap::fromImage(Leftp));
+		m_LeftBlade->show();
 
 
 		//绘制右侧刀片
-		QImage Rightp(m_LeftLabel->size(), QImage::Format_ARGB32);
+		QImage Rightp(m_LeftBlade->size(), QImage::Format_ARGB32);
 		//m_LeftLabel->setStyleSheet("background:color rbg(255,255,255);");
 		Rightp.fill(QColor(255, 255, 255, 20));
 		QPainter Rightpainter(&Rightp);
@@ -269,8 +269,8 @@ void VidSlider::paintEvent(QPaintEvent *event)
 
 
 		Rightpainter.drawPolygon(rightPointVec);
-		m_RightLabel->setPixmap(QPixmap::fromImage(Rightp));
-		m_RightLabel->show();
+		m_RightBlade->setPixmap(QPixmap::fromImage(Rightp));
+		m_RightBlade->show();
 
 
 		/*绘制临时的截图区域
@@ -302,7 +302,7 @@ bool VidSlider::eventFilter(QObject *obj, QEvent *event)
 {
 
 
-	if (obj == m_LeftLabel)
+	if (obj == m_LeftBlade)
 	{
 		if (event->type() != QEvent::MouseButtonPress)
 		{
@@ -311,12 +311,12 @@ bool VidSlider::eventFilter(QObject *obj, QEvent *event)
 		QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
 		QPoint mousePos = mouseEvent->pos();
 
-		if (m_LeftLabel->rect().contains(mousePos))
+		if (m_LeftBlade->rect().contains(mousePos))
 		{
 			isLeftClicked = true;
 		}
 	}
-	else if (obj == m_RightLabel)
+	else if (obj == m_RightBlade)
 	{
 		if (event->type() != QEvent::MouseButtonPress)
 		{
@@ -325,7 +325,7 @@ bool VidSlider::eventFilter(QObject *obj, QEvent *event)
 		QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
 		QPoint mousePos = mouseEvent->pos();
 
-		if (m_RightLabel->rect().contains(mousePos))
+		if (m_RightBlade->rect().contains(mousePos))
 		{
 			isRightClicked = true;
 		}
@@ -340,7 +340,7 @@ void VidSlider::wheelEvent(QWheelEvent *event)
 	QSlider::wheelEvent(event);
 	if (m_is_ready_to_cut)//剪切功能启动,应该改为正在播放
 	{
-		double Leftper = m_LeftLabel->pos().x() + m_LeftLabel->width();
+		double Leftper = m_LeftBlade->pos().x() + m_LeftBlade->width();
 		Leftper = (double)Leftper / this->width();
 		int Leftvalue = Leftper*(this->maximum() - this->minimum()) + this->minimum();
 
@@ -352,7 +352,7 @@ void VidSlider::wheelEvent(QWheelEvent *event)
 			return;
 		}
 
-		double Rightper = (double)m_RightLabel->pos().x() / this->width();
+		double Rightper = (double)m_RightBlade->pos().x() / this->width();
 		int Rightvalue = Rightper*(this->maximum() - this->minimum()) + this->minimum();
 
 		if (this->value() > Rightvalue)//判别滑块位置,不小于左刀片
@@ -384,7 +384,7 @@ void VidSlider::mousePressEvent(QMouseEvent *event)
 
 		int posvalue = posper*(this->maximum()) + this->minimum();
 
-		double Leftper = m_LeftLabel->pos().x() + m_LeftLabel->width();
+		double Leftper = m_LeftBlade->pos().x() + m_LeftBlade->width();
 		Leftper = (double)Leftper / this->width();
 		int Leftvalue = Leftper*(this->maximum()) + this->minimum();
 
@@ -396,7 +396,7 @@ void VidSlider::mousePressEvent(QMouseEvent *event)
 			return;
 		}
 
-		double Rightper = (double)m_RightLabel->pos().x() / this->width();
+		double Rightper = (double)m_RightBlade->pos().x() / this->width();
 		int Rightvalue = Rightper*(this->maximum());
 
 		if (posvalue > Rightvalue)//判别滑块位置,不小于左刀片
@@ -420,30 +420,36 @@ void VidSlider::mouseMoveEvent(QMouseEvent *event)
 	{	
 		if (event->pos().x() <= 0)
 		{
-			m_LeftLabel->setGeometry(0, 0, 8, 14);
+			m_LeftBlade->setGeometry(0, 0, 8, 14);
+			emit blade_motivated();
 		}
-		else if (m_LeftLabel->pos().x() >=m_RightLabel->pos().x())//小于右侧刀片
+		else if (m_LeftBlade->pos().x() >=m_RightBlade->pos().x())//小于右侧刀片
 		{
-			m_LeftLabel->setGeometry(m_RightLabel->pos().x() - m_RightLabel->width(), 0, 8, 14);
+			m_LeftBlade->setGeometry(m_RightBlade->pos().x() - m_RightBlade->width(), 0, 8, 14);
+			emit blade_motivated();
 		}
 		else
 		{
-			m_LeftLabel->setGeometry(event->pos().x(), 0, 8, 14);
+			m_LeftBlade->setGeometry(event->pos().x(), 0, 8, 14);
+			emit blade_motivated();
 		}
 	}
 	else if (isRightClicked)
 	{
 		if (event->pos().x() >= this->width())
 		{
-			m_RightLabel->setGeometry(this->width() - 7, 0, 8, 14);
+			m_RightBlade->setGeometry(this->width() - 7, 0, 8, 14);
+			emit blade_motivated();
 		}
-		else if (m_LeftLabel->pos().x() >= m_RightLabel->pos().x())//小于右侧刀片
+		else if (m_LeftBlade->pos().x() >= m_RightBlade->pos().x())//小于右侧刀片
 		{
-			m_RightLabel->setGeometry(m_LeftLabel->pos().x() + m_LeftLabel->width(), 0, 8, 14);
+			m_RightBlade->setGeometry(m_LeftBlade->pos().x() + m_LeftBlade->width(), 0, 8, 14);
+			emit blade_motivated();
 		}
 		else
 		{
-			m_RightLabel->setGeometry(event->pos().x(), 0, 8, 14);
+			m_RightBlade->setGeometry(event->pos().x(), 0, 8, 14);
+			emit blade_motivated();
 		}
 	}
 
@@ -451,7 +457,7 @@ void VidSlider::mouseMoveEvent(QMouseEvent *event)
 
 	if (m_is_ready_to_cut)//剪切功能启动,应该改为正在播放
 	{
-		double Leftper = m_LeftLabel->pos().x() + m_LeftLabel->width();
+		double Leftper = m_LeftBlade->pos().x() + m_LeftBlade->width();
 		Leftper = (double)Leftper / (double)this->width();
 
 		int Leftvalue = Leftper*(this->maximum());
@@ -463,7 +469,7 @@ void VidSlider::mouseMoveEvent(QMouseEvent *event)
 			return;
 		}
 
-		double Rightper = (double)m_RightLabel->pos().x() / (double)this->width();
+		double Rightper = (double)m_RightBlade->pos().x() / (double)this->width();
 		int Rightvalue = Rightper*(this->maximum());
 
 		if (this->value() >= Rightvalue)//判别滑块位置,不小于左刀片
@@ -490,7 +496,7 @@ void VidSlider::mouseReleaseEvent(QMouseEvent *event)
 	{
 		if (isLeftClicked)
 		{	
-			double Leftper = m_LeftLabel->pos().x() + m_LeftLabel->width();
+			double Leftper = m_LeftBlade->pos().x() + m_LeftBlade->width();
 			Leftper = (double)Leftper / this->width();
 			int Leftvalue = Leftper*(this->maximum());
 
@@ -503,7 +509,7 @@ void VidSlider::mouseReleaseEvent(QMouseEvent *event)
 		}
 		else if (isRightClicked)
 		{
-			double Rightper = (double)m_RightLabel->pos().x() / this->width();
+			double Rightper = (double)m_RightBlade->pos().x() / this->width();
 			int Rightvalue = Rightper*(this->maximum());
 
 			if (this->value() >= Rightvalue)//判别滑块位置,不小于右侧刀片
@@ -520,11 +526,11 @@ void VidSlider::mouseReleaseEvent(QMouseEvent *event)
 }
 
 
-void VidSlider::Slot_ShowVesselQualitySegment()
+void VidSlider::Begin_cutout_video()
 {
 	//SetSliderColor();//显示
-	m_LeftLabel->show();
-	m_RightLabel->show();
+	m_LeftBlade->show();
+	m_RightBlade->show();
 
 	/*QLabel *tmp = new QLabel(this);
 	m_LeftLabel->hide();
@@ -535,7 +541,7 @@ void VidSlider::Slot_ShowVesselQualitySegment()
 	repaint();
 }
 
-void VidSlider::Slot_HideVesselQualitySegment()
+void VidSlider::Finish_cutout_video()
 {
 	this->setStyleSheet(
 		"QSlider::groove:horizontal {height: 8;background-color: rgb(188,188,188);}"
@@ -543,7 +549,7 @@ void VidSlider::Slot_HideVesselQualitySegment()
 		"QSlider::handle:horizontal{width:12px;background-color:rgb(255,154,60);margin:-2px 0px -2px 0px;border-radius:6px;}");
 
 	m_is_ready_to_cut = false;
-	m_LeftLabel->hide();
-	m_RightLabel->hide();
+	m_LeftBlade->hide();
+	m_RightBlade->hide();
 	repaint();
 }

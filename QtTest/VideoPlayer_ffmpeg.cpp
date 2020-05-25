@@ -387,8 +387,14 @@ QWidget(p)
 	video_playtime->setGeometry(250, 65, 100, 20);
 	video_playtime->setText("00:00:00");
 
-	playspeed_box = new QComboBox(this);
-	playspeed_box->setGeometry(400, 60, 40, 40);
+	playspeed_choose_btn = new QPushButton(this);
+	playspeed_choose_btn->setGeometry(400, 60, 60, 40);
+
+	playspeed_list = new QListWidget(p);
+	playspeed_list->setGeometry(400, 0, 60, 100);
+	playspeed_list->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	playspeed_list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	playspeed_list->hide();
 
 	func_button_list = new QStackedWidget(this);
 
@@ -463,8 +469,11 @@ m_playspeed_1_index(2)
 	connect(m_VideoPlayer_ffmpeg_kit->slider, 
 		&VidSlider::slider_motivated, 
 		this, 
-		&VideoPlayer_ffmpeg::slot_slider_triggered);
-	//m_VideoPlayer_ffmpeg_kit->slider->installEventFilter(this);
+		&VideoPlayer_ffmpeg::slot_slider_motivated);
+	connect(m_VideoPlayer_ffmpeg_kit->slider,
+		&VidSlider::blade_motivated,
+		this,
+		&VideoPlayer_ffmpeg::slot_blade_motivated);
 	m_VideoPlayer_ffmpeg_kit->slider->setCursor(QCursor(Qt::PointingHandCursor));
 
 	init_playspeed_box();
@@ -489,23 +498,35 @@ m_playspeed_1_index(2)
 }
 void VideoPlayer_ffmpeg::init_playspeed_box()
 {
-	if (m_VideoPlayer_ffmpeg_kit->controler->playspeed_box->count() > 0)
+	if (m_VideoPlayer_ffmpeg_kit->controler->playspeed_list->count() > 0)
 	{
-		m_VideoPlayer_ffmpeg_kit->controler->playspeed_box->clear();
+		m_VideoPlayer_ffmpeg_kit->controler->playspeed_list->clear();
 	}
 
 	int playspeed_num = m_playspeed_choosen.size();
 	for (int i = 0; i < playspeed_num; ++i)
 	{
 		QString choosen = QString::number(m_playspeed_choosen[i], 10, 1) + QStringLiteral("倍速");
-		m_VideoPlayer_ffmpeg_kit->controler->playspeed_box->insertItem(i, choosen);
-	}
-	m_VideoPlayer_ffmpeg_kit->controler->playspeed_box->setCurrentIndex(m_playspeed_1_index);
+		m_VideoPlayer_ffmpeg_kit->controler->playspeed_list->insertItem(i, choosen);
 
-	connect(m_VideoPlayer_ffmpeg_kit->controler->playspeed_box,
-		SIGNAL(currentIndexChanged(int)),
+		QListWidgetItem* new_item = m_VideoPlayer_ffmpeg_kit->controler->playspeed_list->item(i);
+		new_item->setToolTip(choosen);
+
+		if (m_playspeed_choosen[i] == 1)
+		{
+			m_VideoPlayer_ffmpeg_kit->controler->playspeed_choose_btn->setText(choosen);
+		}
+	}
+
+	connect(m_VideoPlayer_ffmpeg_kit->controler->playspeed_choose_btn,
+		&QPushButton::clicked,
 		this,
-		SLOT(slot_playspeed_changed(int)));
+		&VideoPlayer_ffmpeg::slot_show_playspeed_choice);
+
+	connect(m_VideoPlayer_ffmpeg_kit->controler->playspeed_list,
+		&QListWidget::itemClicked,
+		this,
+		&VideoPlayer_ffmpeg::slot_playspeed_changed);
 }
 
 VideoPlayer_ffmpeg::set_media_status VideoPlayer_ffmpeg::set_media(
@@ -540,8 +561,8 @@ VideoPlayer_ffmpeg::set_media_status VideoPlayer_ffmpeg::set_media(
 	// 设置显示范围
 	set_playrange(beginms, finishms);
 
-	// 设置默认使用1倍速播放
-	m_VideoPlayer_ffmpeg_kit->controler->playspeed_box->setCurrentIndex(m_playspeed_1_index);
+	//// 设置默认使用1倍速播放
+	//m_VideoPlayer_ffmpeg_kit->controler->playspeed_list->setCurrentIndex(m_playspeed_1_index);
 
 	// 设置显示大小和显示速度
 	m_collector->set_showsize(m_VideoPlayer_ffmpeg_kit->frame_displayer->size());
@@ -553,6 +574,7 @@ VideoPlayer_ffmpeg::set_media_status VideoPlayer_ffmpeg::set_media(
 
 	// 根据视频时长 初始化进度条数值范围
 	m_VideoPlayer_ffmpeg_kit->slider->setRange(0, video_msecond);
+	m_VideoPlayer_ffmpeg_kit->slider->SetVideoTime(video_msecond);
 
 	return set_media_status::Succeed;
 }
@@ -617,12 +639,17 @@ void VideoPlayer_ffmpeg::leaveEvent(QEvent* event)
 	if (m_controller_always_hide)
 		return;
 
+	if (m_VideoPlayer_ffmpeg_kit->controler->playspeed_list->isVisible())
+		return;
+
 	m_VideoPlayer_ffmpeg_kit->slider_background->hide();
 	m_VideoPlayer_ffmpeg_kit->slider->hide();
 	m_VideoPlayer_ffmpeg_kit->controler->hide();
 }
 void VideoPlayer_ffmpeg::keyPressEvent(QKeyEvent* event)
 {
+	/* lzx 20200525 播放器的键盘(关闭播放器)事件仅限调试时使用 */
+#ifdef _DEBUG
 	if (event->modifiers() == Qt::ControlModifier && event->key() == Qt::Key_W)
 	{
 		event->accept();
@@ -633,62 +660,7 @@ void VideoPlayer_ffmpeg::keyPressEvent(QKeyEvent* event)
 	{
 		event->ignore();
 	}
-}
-bool VideoPlayer_ffmpeg::eventFilter(QObject* watched, QEvent* event)
-{
-// 	if (watched == m_VideoPlayer_ffmpeg_kit->slider)
-// 	{
-// 		// 20200520 lzx 在不重载QSlider的情况下 实现播放进度条随处可点的功能
-// 		QSlider* slider = m_VideoPlayer_ffmpeg_kit->slider;
-// 
-// 		if (event->type() == QEvent::MouseButtonRelease)
-// 		{
-// 			QMouseEvent* mouse_event = static_cast<QMouseEvent*>(event);
-// 			if (mouse_event->button() != Qt::LeftButton)
-// 				return false;
-// 
-// 			int duration = slider->maximum() - slider->minimum();
-// 			int position = slider->minimum() + duration * ((double)mouse_event->x() / slider->width());
-// 			int now_postion = slider->value();
-// 			if (position != now_postion)
-// 			{
-// 				slider->setValue(position);
-// 				if (position < now_postion)
-// 				{
-// 					emit slider_motivated(QAbstractSlider::SliderPageStepSub);
-// 				}
-// 				else
-// 				{
-// 					emit slider_motivated(QAbstractSlider::SliderPageStepAdd);
-// 				}
-// 			}
-// 		}
-// 		else if (event->type() == QEvent::KeyPress)
-// 		{
-// 			const int step = 1;
-// 			QKeyEvent* key_event = static_cast<QKeyEvent*>(event);
-// 			if (key_event->key() == Qt::Key_Left)
-// 			{
-// 				int now_value = slider->value();
-// 				if (now_value - step >= slider->minimum())
-// 				{
-// 					slider->setValue(now_value - step);
-// 					emit slider_motivated(QAbstractSlider::SliderSingleStepSub);
-// 				}
-// 			}
-// 			else if (key_event->key() == Qt::Key_Right)
-// 			{
-// 				int now_value = slider->value();
-// 				if (now_value + step <= slider->maximum())
-// 				{
-// 					slider->setValue(now_value + step);
-// 					emit slider_motivated(QAbstractSlider::SliderSingleStepAdd);
-// 				}
-// 			}
-// 		}		
-// 	}
-
-	return QObject::eventFilter(watched, event);
+#endif
 }
 
 void VideoPlayer_ffmpeg::clear_videodisplayer()
@@ -716,6 +688,12 @@ void VideoPlayer_ffmpeg::slot_finish_show_frame()
 	{
 		emit play_finish();
 	}
+}
+
+void VideoPlayer_ffmpeg::slot_show_playspeed_choice()
+{
+	bool choice_visible = m_VideoPlayer_ffmpeg_kit->controler->playspeed_list->isVisible();
+	m_VideoPlayer_ffmpeg_kit->controler->playspeed_list->setVisible(!choice_visible);
 }
 
 void VideoPlayer_ffmpeg::slot_playtime_changed(int msec)
@@ -753,27 +731,53 @@ void VideoPlayer_ffmpeg::slot_play_or_pause()
 	}
 }
 
-void VideoPlayer_ffmpeg::slot_slider_triggered()
+void VideoPlayer_ffmpeg::slot_slider_motivated()
 {
 	if (!m_video_exist)
 		return;
 
-	//if (action != QAbstractSlider::SliderSingleStepAdd &&		// 鼠标单击滑块右边
-	//	action != QAbstractSlider::SliderSingleStepSub &&		// 鼠标单击滑块左边
-	//	action != QAbstractSlider::SliderPageStepAdd &&			// 键盘右箭头
-	//	action != QAbstractSlider::SliderPageStepSub)			// 键盘左箭头
-	//{
-	//	return;
-	//}
-
 	int value = m_VideoPlayer_ffmpeg_kit->slider->value();
 	m_collector->leap(value);
 }
-
-void VideoPlayer_ffmpeg::slot_playspeed_changed(int box_idx)
+void VideoPlayer_ffmpeg::slot_blade_motivated()
 {
-	double change_play_speed = m_playspeed_choosen[box_idx];
+	// 从slider截取刀片位置发送变化 重新获取起始与结束
+	int left_value = 0;
+	int right_value = -1;
+	m_VideoPlayer_ffmpeg_kit->slider->GetCutTimeRange(left_value, right_value);
+
+	set_replay(false);
+
+	m_playbeginms = left_value;
+	m_playendms = right_value;
+	m_collector->set_playrange(m_playbeginms, m_playendms);
+
+	set_replay(true);
+}
+
+void VideoPlayer_ffmpeg::slot_playspeed_changed(QListWidgetItem* box_idx)
+{
+	if (nullptr == box_idx)
+		return;
+
+	QListWidget* list = m_VideoPlayer_ffmpeg_kit->controler->playspeed_list;
+	if (nullptr == list)
+		return;
+
+	list->hide();
+	
+	int i = 0;
+	for (i = 0; i < list->count(); ++i)
+	{
+		if (box_idx == list->item(i))
+			break;
+	}
+
+	int idx = (i >= list->count() ?  0 : i);
+	
+	double change_play_speed = m_playspeed_choosen[idx];
 	m_collector->set_playspeed(change_play_speed);
+	m_VideoPlayer_ffmpeg_kit->controler->playspeed_choose_btn->setText(box_idx->text());
 }
 
 void VideoPlayer_ffmpeg::slot_delete_video()
@@ -783,25 +787,32 @@ void VideoPlayer_ffmpeg::slot_delete_video()
 
 void VideoPlayer_ffmpeg::slot_ready_shear_video()
 {
-	// lzx TODO 从 qjl的 slider中获取截取位置 left && right
-	int left_value = 1000;
-	int right_value = 4000;
+	// 从slider获取截取位置 left && right
+	int left_value = 0;
+	int right_value = -1;
+	m_VideoPlayer_ffmpeg_kit->slider->GetCutTimeRange(left_value, right_value);
 
 	m_playbeginms = left_value;
 	m_playendms = right_value;
 	m_collector->set_playrange(m_playbeginms, m_playendms);
+	set_replay(true);
 
 	m_VideoPlayer_ffmpeg_kit->controler->cancle_shear_btn->show();
 	m_VideoPlayer_ffmpeg_kit->controler->comfirm_shear_btn->show();
 
-	m_VideoPlayer_ffmpeg_kit->slider->Slot_ShowVesselQualitySegment();
+	m_VideoPlayer_ffmpeg_kit->slider->Begin_cutout_video();
 }
 void VideoPlayer_ffmpeg::slot_cancle_shear_video()
 {
 	m_VideoPlayer_ffmpeg_kit->controler->cancle_shear_btn->hide();
 	m_VideoPlayer_ffmpeg_kit->controler->comfirm_shear_btn->hide();
 
-	m_VideoPlayer_ffmpeg_kit->slider->Slot_HideVesselQualitySegment();
+	m_playbeginms = 0;
+	m_playendms = -1;
+	m_collector->set_playrange(m_playbeginms, m_playendms);
+	set_replay(false);
+
+	m_VideoPlayer_ffmpeg_kit->slider->Finish_cutout_video();
 	m_VideoPlayer_ffmpeg_kit->slider->CancleCutVideo();
 }
 void VideoPlayer_ffmpeg::slot_confirm_shear_video()
@@ -809,7 +820,7 @@ void VideoPlayer_ffmpeg::slot_confirm_shear_video()
 	m_VideoPlayer_ffmpeg_kit->controler->cancle_shear_btn->hide();
 	m_VideoPlayer_ffmpeg_kit->controler->comfirm_shear_btn->hide();
 
-	m_VideoPlayer_ffmpeg_kit->slider->Slot_HideVesselQualitySegment();
+	m_VideoPlayer_ffmpeg_kit->slider->Finish_cutout_video();
 
 	m_collector->stop();
 	m_collector->set_playrange(m_playbeginms, m_playendms);
@@ -822,12 +833,25 @@ void VideoPlayer_ffmpeg::slot_confirm_shear_video()
 		cv::Size(w, h), false
 		);
 
+	m_shear_schedule = 0;
+	int framenums = m_collector->get_playrange_framenums();
+	PromptBoxInst()->progbar_prepare(0, framenums, Prompt_progbar_type::Normal_Progbar, true);
+
 	m_collector->set_runmode(VideoPlayer_ffmpeg_FrameCollector::RunMode::ShearVideoMode);
 	m_collector->play();
 	m_collector->start();
 }
 void VideoPlayer_ffmpeg::slot_shear_collect_one_frame(cv::Mat image)
 {
+	QTime shear_time(0, 0, 0, 0);
+	shear_time = shear_time.addMSecs(m_playendms - m_playbeginms);
+
+	QString shear_tips = QStringLiteral("剪辑时长为");
+	shear_tips += shear_time.toString(QStringLiteral("hh小时mm分ss秒"));
+	shear_tips += '\n';
+	shear_tips += QStringLiteral("剪辑中...");
+
+	PromptBoxInst()->progbar_go_multithread(++m_shear_schedule, shear_tips);
 	if (m_writer.isOpened())
 	{
 		m_writer.write(image);

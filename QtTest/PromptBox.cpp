@@ -149,7 +149,7 @@ PromptBox* PromptBox::inst(QWidget* p)
 	return s_inst;
 }
 
-PromptBox_rettype PromptBox::msgbox_go(PromptBox_msgtype msgtype, PromptBox_btntype btntype, tiptype show_tips, int interval_ms, bool auto_close)
+PromptBox_rettype PromptBox::msgbox_go(PromptBox_msgtype msgtype, PromptBox_btntype btntype, QString& show_tips, int interval_ms, bool auto_close)
 {
 	set_MsgBox_style(msgtype, btntype, show_tips);
 	if (auto_close)
@@ -210,19 +210,19 @@ void PromptBox::progbar_prepare(int min, int max, Prompt_progbar_type bartype, b
 	this->show();
 	m_progbar_timer->start(33);
 }
-void PromptBox::progbar_go(int val, tiptype tips)
+void PromptBox::progbar_go_mainthread_blocking(int val, QString& tip_1)
 {
 	// 只是纯粹设置数值 判断在定时器槽函数中做
 	if (!m_progbar_timer->isActive())
 		return;
 
 	m_kit->progbar_kitlist->progbar->setValue(val);
-	m_kit->progbar_kitlist->tips->setText(tips);
+	m_kit->progbar_kitlist->tips->setText(tip_1);
 	m_kit->progbar_kitlist->progbar_schedule->setText(QString("%1%").arg(val * 100 / m_prog_range));
 
 	QApplication::processEvents();
 }
-void PromptBox::progbar_go(int val, tiptype tip_exporting, tiptype tip_exportnum, tiptype tip_finished, tiptype tip_residuetime)
+void PromptBox::progbar_go_mainthread_blocking(int val, QString& tip_exporting, QString& tip_exportnum, QString& tip_finished, QString& tip_residuetime)
 {
 	if (!m_progbar_timer->isActive())
 		return;
@@ -236,13 +236,34 @@ void PromptBox::progbar_go(int val, tiptype tip_exporting, tiptype tip_exportnum
 	QApplication::processEvents();
 }
 
+void PromptBox::progbar_go_multithread(int val, QString& tip_1)
+{
+	if (!m_progbar_timer->isActive())
+		return;
+
+	m_kit->progbar_kitlist->progbar->setValue(val);
+	m_kit->progbar_kitlist->tips->setText(tip_1);
+	m_kit->progbar_kitlist->progbar_schedule->setText(QString("%1%").arg(val * 100 / m_prog_range));
+}
+void PromptBox::progbar_go_multithread(int val, QString& tip_1, QString& tip_2, QString& tip_3, QString& tip_4)
+{
+	if (!m_progbar_timer->isActive())
+		return;
+
+	m_kit->batchprogbar_kitlist->progbar->setValue(val);
+	m_kit->batchprogbar_kitlist->tip_exporting->setText(tip_1);
+	m_kit->batchprogbar_kitlist->tip_exportnum->setText(tip_2);
+	m_kit->batchprogbar_kitlist->tip_finished->setText(tip_3);
+	m_kit->batchprogbar_kitlist->tip_residuetime->setText(tip_4);
+}
+
 void PromptBox::progbar_fakego(int min, int max, int interval_ms, QString tip, bool auto_close)
 {
 	progbar_prepare(min, max, Prompt_progbar_type::Normal_Progbar, auto_close);
 	for (int i = 0; i <= max; ++i)
 	{
 		::Sleep(interval_ms);
-		progbar_go(i, tip);
+		progbar_go_mainthread_blocking(i, tip);
 	}
 }
 

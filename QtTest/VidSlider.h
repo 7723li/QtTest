@@ -125,8 +125,8 @@ private:
 	int m_allFrameCount;//总帧数
 	int m_videoTime;//父视频总时间
 	int m_currentFrameNo;//当前帧
-	QLabel * m_LeftLabel;//左侧刀片
-	QLabel * m_RightLabel;//右侧刀片
+	QLabel * m_LeftBlade;//左侧刀片
+	QLabel * m_RightBlade;//右侧刀片
 
 	bool m_is_ready_to_cut;//标志位,为True则屏蔽滑动条的鼠标事件
 	bool isLeftClicked;//左侧刀片点击了
@@ -175,16 +175,27 @@ protected:
 public slots:
 	/*
 	*@brief
+	*截取视频起始步骤
 	*显示质量帧范围槽函数
 	*/
-	void Slot_ShowVesselQualitySegment();
+	void Begin_cutout_video();
 
 	/*
 	*@brief
+	*截取视频结束步骤
 	*隐藏质量帧范围槽函数
 	*/
-	void Slot_HideVesselQualitySegment();
+	void Finish_cutout_video();
 
 signals:
+	/*!
+	@brief
+	进度条鼠标或滚轮事件
+	*/
 	void slider_motivated();
+	/*!
+	@brief
+	刀片(视频截取 起始、结束位置)移动事件
+	*/
+	void blade_motivated();
 };

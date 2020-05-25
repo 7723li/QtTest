@@ -541,12 +541,10 @@ void PageVideoRecord::slot_replay_begin(QListWidgetItem* choosen_video)
 
 	m_PageVideoRecord_kit->videoplayer->show();
 	m_PageVideoRecord_kit->videoplayer->set_media(video_name_iter->second);	// 开始播放视频
-// 	m_PageVideoRecord_kit->videoplayer->set_playrange(1000, 4000);
-// 	m_PageVideoRecord_kit->videoplayer->set_replay(true);
 }
 void PageVideoRecord::slot_replay_finish()
 {
-	m_PageVideoRecord_kit->video_list->setEnabled(true);				// 回播完 我房间里有些其他好康的
+	m_PageVideoRecord_kit->video_list->setEnabled(true);					// 回播完 我房间里有些其他好康的
 }
 
 void PageVideoRecord::slot_camera_plugin()

@@ -35,8 +35,12 @@
 #include <windows.h>
 #endif
 
-typedef const QString& tiptype;
-
+/*!
+@brief
+提示框 & 进度条实例
+@note
+进度条的数值更新必须在主线程中进行
+*/
 #define PromptBoxInst PromptBox::inst
 
 /*
@@ -175,7 +179,7 @@ public:
 	@param[4] interval_secs	阻塞时间	(s)			int
 	@param[5] auto_close	自动关闭				bool
 	*/
-	PromptBox_rettype msgbox_go(PromptBox_msgtype msgtype, PromptBox_btntype btntype, tiptype show_tips, int interval_ms = 0, bool auto_close = false);
+	PromptBox_rettype msgbox_go(PromptBox_msgtype msgtype, PromptBox_btntype btntype, QString& show_tips, int interval_ms = 0, bool auto_close = false);
 
 	/*
 	@brief
@@ -193,15 +197,40 @@ public:
 	void progbar_prepare(int min, int max, Prompt_progbar_type bartype, bool auto_close = false);
 	/*
 	@brief
-	进度条数值变化
-	@param[1] val	走动数值								int
-	@param[2] tip_1 普通进度条提示 & 批量导出"正在导出"	QString
-	@param[3] tip_2 批量导出"已完成x%"					QString
-	@param[4] tip_3 批量导出"导出病例x个"					QString
-	@param[5] tip_4 批量导出"剩余时间"					QString
+	更新进度条数值 主线程堵塞接口 并 在主线程中更新数值
+	@param[1] val	走动数值			int
+	@param[2] tip_1 普通进度条提示 	QString
 	*/
-	void progbar_go(int val, tiptype tip_1);
-	void progbar_go(int val, tiptype tip_1, tiptype tip_2, tiptype tip_3, tiptype tip_4);
+	void progbar_go_mainthread_blocking(int val, QString& tip_1);
+	/*
+	@brief
+	更新进度条数值 主线程堵塞接口 批量导出 在主线程中更新数值
+	@param[1] val	走动数值					int
+	@param[2] tip_1 批量导出"正在导出"		QString
+	@param[3] tip_2 批量导出"已完成x%"		QString
+	@param[4] tip_3 批量导出"导出病例x个"		QString
+	@param[5] tip_4 批量导出"剩余时间"		QString
+	*/
+	void progbar_go_mainthread_blocking(int val, QString& tip_1, QString& tip_2, QString& tip_3, QString& tip_4);
+
+
+	/*
+	@brief
+	更新进度条数值 多线程 在主线程中更新数值
+	@param[1] val	走动数值			int
+	@param[2] tip_1 普通进度条提示	QString
+	*/
+	void progbar_go_multithread(int val, QString& tip_1);
+	/*
+	@brief
+	更新进度条数值 多线程 批量导出 在主线程中更新数值
+	@param[1] val	走动数值					int
+	@param[2] tip_1 批量导出"正在导出"		QString
+	@param[3] tip_2 批量导出"已完成x%"		QString
+	@param[4] tip_3 批量导出"导出病例x个"		QString
+	@param[5] tip_4 批量导出"剩余时间"		QString
+	*/
+	void progbar_go_multithread(int val, QString& tip_1, QString& tip_2, QString& tip_3, QString& tip_4);
 
 	/*
 	@brief

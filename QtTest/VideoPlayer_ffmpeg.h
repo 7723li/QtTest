@@ -23,6 +23,8 @@
 #include <QPainter>
 #include <QMetaType>
 #include <QMutex>
+#include <QAbstractItemView>
+#include <QListWidget>
 
 #include "PromptBox.h"
 #include "externalFile/opencv/include/opencv2/core/core.hpp"
@@ -152,6 +154,10 @@ public:
 		m_video_playbegin = beginms;
 		m_video_playend = endms;
 		leap(m_video_playbegin);
+	}
+	int get_playrange_framenums()
+	{
+		return (double)(m_video_playend - m_video_playbegin) / 1000 / m_second_timebase;
 	}
 
 	void set_runmode(RunMode mode){ m_runmode = mode; }
@@ -322,7 +328,17 @@ public:
 	QPushButton* play_or_pause_btn;							// 播放暂停按钮
 	QLabel* video_playtime;									// 视频播放时间
 	QLabel* video_sumtime;									// 视频总时长
-	QComboBox* playspeed_box;								// 倍速选择
+
+	/* 
+	lzx 20200525 
+	截至目前为止 QComboBox 尚未支持点击后向上展示的功能
+	使用 https://stackoverflow.com/questions/10057140/how-to-make-qcombobox-popup-upwards 
+	中的重载showPopup方法确实可以实现向上展示
+	但动画效果会变成先向下显示闪一下 再向上展示
+	不可能接受这种效果 因此目前只能选择用组合的方式实现向上显示的功能
+	*/
+	QPushButton* playspeed_choose_btn;						// 倍速选择按钮
+	QListWidget* playspeed_list;							// 倍速选择列表
 
 	QStackedWidget* func_button_list;						// 功能键列表
 	QPushButton* delete_btn;								// 删除视频
@@ -472,15 +488,6 @@ protected:
 	1、ctrl + w 关闭播放器
 	*/
 	void keyPressEvent(QKeyEvent* event);
-	/*
-	@brief
-	事件过滤器
-	@note
-	1、在不重载QSlider的情况下 实现播放进度条随处可点的功能
-	@see
-	使用事件过滤器 需要在构造函数调用son->installEventFilter(par)功能 来注册过滤器
-	*/
-	bool eventFilter(QObject* watched, QEvent* event);
 
 private:
 	void clear_videodisplayer();
@@ -494,6 +501,8 @@ private slots:
 	void slot_show_collect_one_frame(const cv::Mat image);
 	void slot_finish_show_frame();
 
+	void slot_show_playspeed_choice();
+
 	/*
 	@brief
 	进度条跳转(单位:ms)
@@ -505,13 +514,19 @@ private slots:
 	播放暂停
 	*/
 	void slot_play_or_pause();
+
 	/*
 	@brief
-	响应进度条事件过滤器
+	响应进度条鼠标或滚轮事件
 	*/
-	void slot_slider_triggered();
+	void slot_slider_motivated();
+	/*
+	@brief
+	响应进度条截取视频刀片滑动事件
+	*/
+	void slot_blade_motivated();
 
-	void slot_playspeed_changed(int box_idx);
+	void slot_playspeed_changed(QListWidgetItem* box_idx);
 
 	void slot_delete_video();
 	/*!
@@ -532,9 +547,24 @@ private slots:
 	void slot_shear_collect_one_frame(cv::Mat image);
 	void slot_shear_finish();
 
+	/*!
+	@brief
+	退出视频播放器
+	@note
+	1、关闭图像采集线程
+	2、释放资源
+	@attention
+	!!!!!
+	每次退出有视频播放或动图播放的界面
+	都强烈建议必须执行这个函数
+	*/
 	void slot_exit();
 
 signals:
+	/*!
+	@brief
+	视频播放完毕
+	*/
 	void play_finish();
 
 private:	
@@ -553,6 +583,7 @@ private:
 
 	videoduration_ms m_playbeginms;
 	videoduration_ms m_playendms;
+	int m_shear_schedule;
 
 	cv::VideoWriter m_writer;
 };

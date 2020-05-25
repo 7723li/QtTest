@@ -72,14 +72,14 @@ void Fuck::slot_1()
  	for (int i = 0; running && i <= 100; ++i)
  	{
  		::Sleep(10);		// 模拟主线程阻塞
- 		PromptBoxInst()->progbar_go(i, QStringLiteral("随便写些东西上去"));
+ 		PromptBoxInst()->progbar_go_mainthread_blocking(i, QStringLiteral("随便写些东西上去"));
  	}
 
  	PromptBoxInst()->progbar_prepare(0, 100, Prompt_progbar_type::Batch_Progbar, false);
  	for (int i = 0; running && i <= 100; ++i)
  	{
  		::Sleep(10);		// 模拟主线程阻塞
- 		PromptBoxInst()->progbar_go(i, 
+ 		PromptBoxInst()->progbar_go_mainthread_blocking(i, 
  			QStringLiteral("正在导出\"哈哈\"的病例"), 
  			QStringLiteral("已完成\"80%\""), 
  			QStringLiteral("导出病例6个"), 
